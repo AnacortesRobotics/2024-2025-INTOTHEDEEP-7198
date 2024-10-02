@@ -39,6 +39,10 @@ public class IntoDeepTeleOp extends OpMode {
             intake.servoControl(IntakeState.In);
 
         }
+        intake.update();
+
+        intake.addTelemetry(telemetry);
+        telemetry.update();
 
     }
 }
