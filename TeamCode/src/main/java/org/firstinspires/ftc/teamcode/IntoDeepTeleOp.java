@@ -1,9 +1,11 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import org.firstinspires.ftc.teamcode.Intake.IntakeState;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import  org.firstinspires.ftc.teamcode.Intake.BlockColor;
 
 @TeleOp
 public class IntoDeepTeleOp extends OpMode {
@@ -11,6 +13,7 @@ public class IntoDeepTeleOp extends OpMode {
     private double forward;
     private double strafe;
     private double rotate;
+    private RevBlinkinLedDriver blinkinLED;
 
     private Intake intake;
 
@@ -18,10 +21,11 @@ public class IntoDeepTeleOp extends OpMode {
     public void init() {
         driveChassis = new Chassis();
         driveChassis.init(hardwareMap);
+        blinkinLED = hardwareMap.get(RevBlinkinLedDriver.class, "blinkinLED");
 
         intake = new Intake();
         intake.init(hardwareMap);
-
+        blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLACK);
     }
 
     @Override
@@ -35,12 +39,28 @@ public class IntoDeepTeleOp extends OpMode {
             intake.servoControl(IntakeState.Stop);
         } else if (gamepad2.b) {
             intake.servoControl(IntakeState.Out);
+            blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLACK);
         } else if (gamepad2.a) {
             intake.servoControl(IntakeState.In);
-
         }
         intake.update();
 
+        if (intake.isLimitDown()) {
+            switch (intake.getIntakeColor()) {
+                case Unknown:
+                    blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLACK);
+                    break;
+                case Red:
+                    blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.RED);
+                    break;
+                case Blue:
+                    blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLUE);
+                    break;
+                case Yellow:
+                    blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.YELLOW);
+                    break;
+            }
+        }
         intake.addTelemetry(telemetry);
         telemetry.update();
 

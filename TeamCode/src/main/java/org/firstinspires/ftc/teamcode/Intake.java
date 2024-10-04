@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 
+import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.robotcore.hardware.*;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
@@ -90,6 +91,10 @@ public class Intake {
         }
 
 
+    }
+
+    public boolean isLimitDown() {
+        return intakeLimit.isPressed();
     }
 
 }
