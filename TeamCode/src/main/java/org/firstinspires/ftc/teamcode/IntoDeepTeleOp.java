@@ -15,7 +15,12 @@ public class IntoDeepTeleOp extends OpMode {
     private double rotate;
     private RevBlinkinLedDriver blinkinLED;
 
+    private DeepArm deepArm;
     private Intake intake;
+
+    private boolean pickup = false;
+    private boolean pickupMode = true;
+    private boolean prevousState = false;
 
     @Override
     public void init() {
@@ -25,6 +30,8 @@ public class IntoDeepTeleOp extends OpMode {
 
         intake = new Intake();
         intake.init(hardwareMap);
+        deepArm = new DeepArm();
+        deepArm.init(hardwareMap);
         blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLACK);
     }
 
@@ -57,11 +64,43 @@ public class IntoDeepTeleOp extends OpMode {
                     blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLUE);
                     break;
                 case Yellow:
-                    blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.YELLOW);
+                    blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.GOLD);
                     break;
             }
         }
+
+
+
+/*
+        if (!deepArm.isArmLimitMagnetDown()) {
+            blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.GOLD);
+        } else {
+            blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLACK);
+        }
+*/
+        if (gamepad2.right_bumper) {
+            // Untested
+            if (!prevousState) {
+                // if prevousState is false, then the button is not currently depressed
+                if (pickupMode) {
+                    // if pickupMode is true, that means it is not currently in pickup mode
+                    pickup = true;
+                    pickupMode = true;
+                } else {
+                    pickup = false;
+                    pickupMode = false;
+                }
+                prevousState = true;
+            }
+        } else {
+            prevousState = false;
+        }
+
+        deepArm.pickupMode(pickup);
+        deepArm.rotateArm(gamepad2.left_stick_y);
+        //deepArm.extendArm(gamepad2.right_stick_y);
         intake.addTelemetry(telemetry);
+        deepArm.addTelemetry(telemetry);
         telemetry.update();
 
     }
