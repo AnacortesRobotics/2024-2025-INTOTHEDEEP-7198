@@ -54,7 +54,8 @@ public class PinpointProcessorTest extends OpMode {
         telemetry.update();
 
         driveChassis = new Chassis();
-        driveChassis.init(hardwareMap);}
+        driveChassis.init(hardwareMap);
+    }
 
     boolean toggleTuning = false;
 
@@ -124,6 +125,7 @@ public class PinpointProcessorTest extends OpMode {
             telemetry.addData("Position", data);
 
             telemetry.addData("Status", odo.getDeviceStatus());
+            telemetry.addData("State", "Rotating heading 90deg");
 
             telemetry.update();
         }
