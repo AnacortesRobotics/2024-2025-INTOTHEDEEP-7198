@@ -20,6 +20,7 @@ public class IntoDeepTeleOp extends OpMode {
 
     private boolean pickup = false;
     private ArmMode pickupMode = ArmMode.Off;
+    private boolean driveMode = true;
 
     @Override
     public void init() {
@@ -39,7 +40,17 @@ public class IntoDeepTeleOp extends OpMode {
         forward = -gamepad1.left_stick_y;
         strafe = gamepad1.left_stick_x;
         rotate = gamepad1.right_stick_x;
-        driveChassis.mecanumDrive(forward, strafe, rotate);
+        if(gamepad1.a) {
+            driveMode = true;
+        } else if(gamepad1.b) {
+            driveMode = false;
+        }
+
+        if(!driveMode) {
+            driveChassis.mecanumDriveFieldCentric(forward, strafe, rotate);
+        } else {
+            driveChassis.mecanumDrive(forward, strafe, rotate);
+        }
 
         if (gamepad2.x) {
             intake.servoControl(IntakeState.Stop);

@@ -23,15 +23,15 @@ public class DeepArm {
     private static final int ARM_LENGTH_MIN = 5;
     private static final int ARM_LENGTH_MAX = 450;
     private static final double TICKS_PER_INCH = 41.3793;
-    private static final double TICKS_PER_REVOLUTION = 537.7;
+    private static final double TICKS_PER_REVOLUTION = 537.7 * 2;
     private static final double STARTING_ANGLE = -33;
     private static final double ARM_BASE_HEIGHT = 9.59375;
     private static final double ARM_BASE_LENGTH = 14.34375;
     private static final double ARM_FRONT_DISTANCE = 15.125;
     private static final double ARM_EXTEND_SPEED = 0.01;
     private static final double ARM_ROTATE_SPEED = 0.01;
-    // 10 7/8 inches for 450 ticks: for math
-    // 0.0241666 repeating
+    private static final int ARM_ROTATE_MIN = 10;
+    private static final int ARM_ROTATE_MAX = 400;
 
     public enum ArmMode {
         Pickup,
@@ -88,8 +88,8 @@ public class DeepArm {
     public void rotateArm(double degrees) {
         armBaseDegrees = degrees;
         int armBaseTicks = (int)(((degrees - STARTING_ANGLE) * TICKS_PER_REVOLUTION) / 360);
-        armBaseTicks = Math.max(armBaseTicks, 10);
-        armBaseTicks = Math.min(armBaseTicks, 400);
+        armBaseTicks = Math.max(armBaseTicks, ARM_ROTATE_MIN);
+        armBaseTicks = Math.min(armBaseTicks, ARM_ROTATE_MAX);
         armBase.setTargetPosition(armBaseTicks);
         armBase.setPower(0.5);
     }

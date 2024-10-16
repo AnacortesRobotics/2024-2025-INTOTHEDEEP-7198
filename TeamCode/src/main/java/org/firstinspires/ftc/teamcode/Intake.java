@@ -9,7 +9,7 @@ public class Intake {
     //names the servos
     private CRServo leftIn;
     private CRServo rightIn;
-    private TouchSensor intakeLimit;
+    private DigitalChannel intakeLimit;
     private ColorSensor colorSensor;
 
     private IntakeState currentState = IntakeState.Stop;
@@ -31,7 +31,7 @@ public class Intake {
         // Initailizes the servos
         leftIn = hMap.get(CRServo.class, "leftIn");
         rightIn = hMap.get(CRServo.class, "rightIn");
-        intakeLimit = hMap.get(TouchSensor.class, "intakeLimit");
+        intakeLimit = hMap.get(DigitalChannel.class, "intakeLimit");
         colorSensor = hMap.get(ColorSensor.class, "colorSensor");
 
     }
@@ -39,7 +39,7 @@ public class Intake {
     public void update() {
         switch (currentState) {
             case In:
-                if (intakeLimit.isPressed()) {
+                if (isLimitDown()) {
                     servoControl(IntakeState.Stop);
                 }
         }
@@ -47,7 +47,7 @@ public class Intake {
     }
 
     public void addTelemetry(Telemetry telemetry) {
-        telemetry.addData("Is button pressed? ", intakeLimit.isPressed());
+        telemetry.addData("Is button pressed? ", isLimitDown());
         telemetry.addData("red from color sensor: ", colorSensor.red());
         telemetry.addData("green from color sensor: ", colorSensor.green());
         telemetry.addData("blue from color sensor: ", colorSensor.blue());
@@ -62,7 +62,7 @@ public class Intake {
                 rightIn.setPower(0);
                 break;
             case In:
-                if (!intakeLimit.isPressed()) {
+                if (!isLimitDown()) {
                     leftIn.setPower(-0.5);
                     rightIn.setPower(0.5);
                 }
@@ -94,7 +94,7 @@ public class Intake {
     }
 
     public boolean isLimitDown() {
-        return intakeLimit.isPressed();
+        return !intakeLimit.getState();
     }
 
 
