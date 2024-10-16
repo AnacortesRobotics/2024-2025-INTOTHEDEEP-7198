@@ -2,10 +2,10 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import org.firstinspires.ftc.teamcode.Intake.IntakeState;
+import org.firstinspires.ftc.teamcode.DeepArm.ArmMode;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import  org.firstinspires.ftc.teamcode.Intake.BlockColor;
 
 @TeleOp
 public class IntoDeepTeleOp extends OpMode {
@@ -19,8 +19,7 @@ public class IntoDeepTeleOp extends OpMode {
     private Intake intake;
 
     private boolean pickup = false;
-    private boolean pickupMode = true;
-    private boolean prevousState = false;
+    private ArmMode pickupMode = ArmMode.Off;
 
     @Override
     public void init() {
@@ -78,27 +77,19 @@ public class IntoDeepTeleOp extends OpMode {
             blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLACK);
         }
 */
-        if (gamepad2.right_bumper) {
-            // Untested
-            if (!prevousState) {
-                // if prevousState is false, then the button is not currently depressed
-                if (pickupMode) {
-                    // if pickupMode is true, that means it is not currently in pickup mode
-                    pickup = true;
-                    pickupMode = true;
-                } else {
-                    pickup = false;
-                    pickupMode = false;
-                }
-                prevousState = true;
-            }
-        } else {
-            prevousState = false;
+        if (gamepad2.dpad_down) {
+            pickupMode = ArmMode.Pickup;
+        } else if (gamepad2.dpad_up) {
+            pickupMode = ArmMode.Score;
+        } else if (gamepad2.dpad_right) {
+            pickupMode = ArmMode.Lifted;
+        }else if (gamepad2.dpad_left) {
+            pickupMode = ArmMode.Off;
         }
 
-        deepArm.pickupMode(pickup);
-        deepArm.rotateArm(gamepad2.left_stick_y);
-        //deepArm.extendArm(gamepad2.right_stick_y);
+        deepArm.setArmState(-gamepad2.left_stick_y, -gamepad2.right_stick_y, pickupMode);
+
+        //deepArm.extendArm(-gamepad2.right_stick_y);
         intake.addTelemetry(telemetry);
         deepArm.addTelemetry(telemetry);
         telemetry.update();
