@@ -71,7 +71,7 @@ public class PinpointProcessorGradientTuner extends OpMode {
         telemetry.update();
 
         driveChassis = new Chassis();
-        driveChassis.init(hardwareMap);
+        driveChassis.init(hardwareMap,telemetry);
     }
 
     boolean toggleTuning = false;
