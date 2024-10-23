@@ -3,16 +3,16 @@ package org.firstinspires.ftc.teamcode;
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
+import com.qualcomm.hardware.dfrobot.HuskyLens;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
-import java.io.File;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.annotation.Annotation;
 import java.util.Locale;
 
 import static org.firstinspires.ftc.teamcode.LogsUtils.*;
@@ -20,9 +20,13 @@ import static org.firstinspires.ftc.teamcode.LogsUtils.*;
 
 @TeleOp
 @Config
-public class PinpointProcessorTest extends OpMode {
+public class PinpointProcessorGradientTuner extends OpMode {
+    private static final double LEARNING_RATE = 1;
     public static double X_OFFSET = -208.76;
     public static double Y_OFFSET = -174.62;
+
+    double oldXOffset = X_OFFSET;
+    double oldYOffset = Y_OFFSET;
 
     GoBildaPinpointDriver odo; // Declare OpMode member for the Odometry Computer
 
@@ -36,8 +40,7 @@ public class PinpointProcessorTest extends OpMode {
     double Y_in_off = 0;
     double Rot_in_off = 0;
 
-    double GradientA = 0;
-    double GradientB = 0;
+    double ErrorX, Old_ErrorX, ErrorY, Old_ErrorY = 0;
 
     @Override
     public void init() {
@@ -47,6 +50,7 @@ public class PinpointProcessorTest extends OpMode {
         // Initialize the hardware variables. Note that the strings used here must correspond
         // to the names assigned during the robot configuration step on the DS or RC devices.
         odo = hardwareMap.get(GoBildaPinpointDriver.class,"odo");
+//        lens = hardwareMap.get(HuskyLens.class,"lens");
 
         // Odometry wheel offsets in mm.
         odo.setOffsets(X_OFFSET, Y_OFFSET);
@@ -67,7 +71,7 @@ public class PinpointProcessorTest extends OpMode {
         telemetry.update();
 
         driveChassis = new Chassis();
-        driveChassis.init(hardwareMap, telemetry);
+        driveChassis.init(hardwareMap);
     }
 
     boolean toggleTuning = false;
@@ -120,12 +124,18 @@ public class PinpointProcessorTest extends OpMode {
         Pose2D pos = odo.getPosition();
         String data = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", pos.getX(DistanceUnit.CM)-X_in_off, pos.getY(DistanceUnit.CM)-Y_in_off, pos.getHeading(AngleUnit.DEGREES));
         telemetry.addData("Position", data);
+
+        telemetry.addData("Current Error", Math.sqrt(Math.pow(ErrorX,2)+Math.pow(ErrorY,2)));
         telemetry.addData("X_OFFSET", X_OFFSET);
         telemetry.addData("Y_OFFSET", Y_OFFSET);
+        telemetry.addLine();
+        telemetry.addData("Error", rotationScore);
+        telemetry.addData("Best X_OFFSET", bestX);
+        telemetry.addData("Best Y_OFFSET", bestY);
+
 
         telemetry.addData("Status", odo.getDeviceStatus());
 
-        telemetry.addData("Error", rotationScore);
 
         telemetry.addData("REV Hub Frequency: ", frequency); //prints the control system refresh rate
         telemetry.update();
@@ -135,44 +145,66 @@ public class PinpointProcessorTest extends OpMode {
         double rotate = exponentialRemapAnalog(deadZone(-gamepad1.right_stick_x, 0.02),2);
 //        driveChassis.mecanumDrive(forward, strafe, rotate);
     }
+
     public static double rotationScore = Double.MAX_VALUE;
     double bestX = X_OFFSET;
     double bestY = Y_OFFSET;
 
     public void AutoTuneRotation() {
+
+        if(rotationScore < 1)
+        {
+            toggleTuning = false;
+            return;
+        }
+
         //rotate 90 degrees
         if(Math.abs(odo.getPosition().getHeading(AngleUnit.DEGREES) - (90-Rot_in_off)) > 0.3)
         {
             Pose2D pos = odo.getPosition();
-            driveChassis.mecanumDrive(0,0,clamp(((90-Rot_in_off)-pos.getHeading(AngleUnit.DEGREES))/12,-0.5,0.5));
+            driveChassis.mecanumDrive(0,0,clamp(((90-Rot_in_off)-pos.getHeading(AngleUnit.DEGREES))/15,-0.5,0.5));
 
             return;
         }
 
+        Old_ErrorX = ErrorX;
+        Old_ErrorY = ErrorY;
+        ErrorX = odo.getPosX()-X_in_off;
+        ErrorY = odo.getPosY()-Y_in_off;
 
-        if(Math.abs(odo.getPosX()-X_in_off)+Math.abs(odo.getPosY()-Y_in_off) < rotationScore)
+        double score = Math.sqrt(Math.pow(ErrorX,2)+Math.pow(ErrorY,2));
+        if(score < rotationScore)
         {
             //its better
-            rotationScore = Math.abs(odo.getPosX()-X_in_off)+Math.abs(odo.getPosY()-Y_in_off);
+            rotationScore = score;
 
             bestX = X_OFFSET;
             bestY = Y_OFFSET;
         }
-        else
-        {
-            //its worse
-            X_OFFSET = bestX;
-            Y_OFFSET = bestY;
 
-            bestX += (Math.random() * 2 - 1);
-            bestY += (Math.random() * 2 - 1);
-        }
+        double tempXOffset = X_OFFSET;
+        double tempYOffset = Y_OFFSET;
+
+        // NOTE TO LOGAN
+        // I swapped = with +=; we were setting the offsets instead of adjusting them
+        // (Changed "X_OFFSET = ..." to "X_OFFSET += ...", etc)
+
+        // Learning rate * change in error / change in offset
+        double offsetChange = (X_OFFSET - oldXOffset) == 0 ? 0.00001 : (X_OFFSET - oldXOffset);
+        X_OFFSET += LEARNING_RATE * (Old_ErrorX-ErrorX) / offsetChange;
+
+        offsetChange = (Y_OFFSET - oldYOffset) == 0 ? 0.00001 : (X_OFFSET - oldYOffset);
+        Y_OFFSET += LEARNING_RATE * (Old_ErrorY-ErrorY) / offsetChange;
+
+//        telemetry.addData("")
+
+        oldXOffset = tempXOffset;
+        oldYOffset = tempYOffset;
 
         // Reset datas here :>
         X_in_off = odo.getPosX();
         Y_in_off = odo.getPosY();
         Rot_in_off = odo.getPosition().getHeading(AngleUnit.DEGREES);
 
-//      targetRotation += 90;
     }
 }
