@@ -21,7 +21,7 @@ public class MosesTest7198 extends OpMode{
     public void init() {
         
         driveChassis = new Chassis();
-        driveChassis.init(hardwareMap);
+        driveChassis.init(hardwareMap, telemetry);
         arm = new Arm();
         arm.init(hardwareMap);
         //arm.liftWrist();

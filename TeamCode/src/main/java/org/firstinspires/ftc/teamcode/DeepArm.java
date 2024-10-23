@@ -1,24 +1,23 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.hardware.DigitalChannel;
-import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.*;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 import static java.lang.Math.*;
 
 public class DeepArm {
 
-    private DcMotor armBase;
-    private  DcMotor armExtend;
+    private DcMotorEx armBase;
+    private DcMotorEx armExtend;
     private DigitalChannel armLimit;
     private DigitalChannel armLimitMagnet;
 
-    private double armBaseDegrees;
-    private double armExtendInches;
+    private double armBaseDegrees = STARTING_ANGLE + 4;
+    private double armExtendInches = 0;
     private boolean pickupMode = false;
     private ArmMode armState = ArmMode.Off;
+    private double armBaseDegreesCurrent = armBaseDegrees;
+    private long lastRotateTime = 0;
 
     private static final int ARM_LENGTH_MIN = 5;
     private static final int ARM_LENGTH_MAX = 450;
@@ -28,10 +27,12 @@ public class DeepArm {
     private static final double ARM_BASE_HEIGHT = 9.59375;
     private static final double ARM_BASE_LENGTH = 14.34375;
     private static final double ARM_FRONT_DISTANCE = 15.125;
-    private static final double ARM_EXTEND_SPEED = 0.01;
-    private static final double ARM_ROTATE_SPEED = 0.01;
-    private static final int ARM_ROTATE_MIN = 10;
+    private static final double ARM_EXTEND_SPEED = 0.15;
+    private static final double ARM_ROTATE_SPEED = 1.5;
+    private static final int ARM_ROTATE_MIN = (int) (STARTING_ANGLE * TICKS_PER_REVOLUTION / 360);
     private static final int ARM_ROTATE_MAX = 400;
+    private static final int DEGREES_PER_SECOND = 45;
+    private Telemetry telemetry;
 
     public enum ArmMode {
         Pickup,
@@ -44,10 +45,12 @@ public class DeepArm {
         return outputStart + (outputEnd - outputStart) * ((value - inputStart) / (inputEnd - inputStart));
     }
 
-    public void init(HardwareMap hMap) {
+    public void init(HardwareMap hMap, Telemetry telemetry) {
 
-        armBase = hMap.get(DcMotor.class, "armBase");
-        armExtend = hMap.get(DcMotor.class, "armExtend");
+        this.telemetry = telemetry;
+
+        armBase = hMap.get(DcMotorEx.class, "armBase");
+        armExtend = hMap.get(DcMotorEx.class, "armExtend");
         armExtend.setDirection(DcMotorSimple.Direction.REVERSE);
         armLimit = hMap.get(DigitalChannel.class, "armLimit");
         armLimitMagnet = hMap.get(DigitalChannel.class, "armLimitMagnet");
@@ -63,19 +66,22 @@ public class DeepArm {
         armExtend.setTargetPosition(0);
         armExtend.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
+        armBase.setPIDFCoefficients(DcMotor.RunMode.RUN_TO_POSITION, new PIDFCoefficients(15, 0, 0 ,0));
+        armExtend.setPIDFCoefficients(DcMotor.RunMode.RUN_TO_POSITION, new PIDFCoefficients(6, 0, 0, 0));
     }
 
     public void setArmState(double rotation, double extendInches, ArmMode state) {
         armState = state;
         switch (state) {
             case Pickup:
-                setArmPosition(3, 1);
+                setArmPosition(3, -2.5);
                 break;
             case Score:
-                setArmPosition(3, 29);
+                // must change, test more
+                setArmPosition(6, 25);
                 break;
             case Lifted:
-                setArmPosition(3, ARM_BASE_HEIGHT);
+                setArmPosition(1, ARM_BASE_HEIGHT);
                 break;
             case Off:
                 rotateArmOffset(rotation);
@@ -87,11 +93,23 @@ public class DeepArm {
 
     public void rotateArm(double degrees) {
         armBaseDegrees = degrees;
-        int armBaseTicks = (int)(((degrees - STARTING_ANGLE) * TICKS_PER_REVOLUTION) / 360);
+        if ((System.currentTimeMillis() - lastRotateTime) > 1000) {
+            lastRotateTime = System.currentTimeMillis();
+            return;
+        }
+
+         if (Math.abs((armBaseDegrees - armBaseDegreesCurrent) / ((System.currentTimeMillis() - lastRotateTime) / 1000)) > DEGREES_PER_SECOND) {
+             armBaseDegreesCurrent = DEGREES_PER_SECOND * ((System.currentTimeMillis() - lastRotateTime) / 1000);
+         } else {
+             armBaseDegreesCurrent = armBaseDegrees;
+         }
+        int armBaseTicks = (int)(((armBaseDegreesCurrent - STARTING_ANGLE) * TICKS_PER_REVOLUTION) / 360);
         armBaseTicks = Math.max(armBaseTicks, ARM_ROTATE_MIN);
         armBaseTicks = Math.min(armBaseTicks, ARM_ROTATE_MAX);
+        telemetry.addData("Arm base ticks", armBaseTicks);
         armBase.setTargetPosition(armBaseTicks);
-        armBase.setPower(0.5);
+        armBase.setPower(1);
+        lastRotateTime = System.currentTimeMillis();
     }
     public void rotateArmOffset(double speed) {
         rotateArm(armBaseDegrees + speed * ARM_ROTATE_SPEED);
@@ -102,8 +120,9 @@ public class DeepArm {
         int armExtendTicks = (int) (armLength * TICKS_PER_INCH);
         armExtendTicks = Math.max(armExtendTicks, ARM_LENGTH_MIN);
         armExtendTicks = Math.min(armExtendTicks, ARM_LENGTH_MAX);
+        telemetry.addData("Arm extend ticks", armExtendTicks);
         armExtend.setTargetPosition(armExtendTicks);
-        armExtend.setPower(0.5);
+        armExtend.setPower(0.8);
     }
     public void extendArmOffset(double speed) {
         extendArm(armExtendInches + speed * ARM_EXTEND_SPEED);
@@ -119,15 +138,16 @@ public class DeepArm {
     }
 
     public void setArmPosition(double inchesFromFront, double inchesFromGround) {
-        double inchesUpOffset = ARM_BASE_HEIGHT - inchesFromGround;
+        double inchesUpOffset = inchesFromGround - ARM_BASE_HEIGHT;
         double inchesOutOffset = ARM_FRONT_DISTANCE + inchesFromFront;
-        double targetAngle = (atan2(inchesUpOffset, inchesOutOffset));
+        double targetAngle = (atan2(inchesUpOffset, inchesOutOffset)) * 180 / Math.PI;
         double targetLength = sqrt(inchesOutOffset * inchesOutOffset + inchesUpOffset * inchesUpOffset) - ARM_BASE_LENGTH;
 
         extendArm(targetLength);
         rotateArm(targetAngle);
 
     }
+
 
 
     public void addTelemetry(Telemetry telemetry) {

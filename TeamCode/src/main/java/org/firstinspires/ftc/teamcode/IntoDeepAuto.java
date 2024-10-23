@@ -23,9 +23,9 @@ public class IntoDeepAuto extends LinearOpMode {
     @Override
     public void runOpMode() throws InterruptedException {
         driveChassis = new Chassis();
-        driveChassis.init(hardwareMap);
+        driveChassis.init(hardwareMap, telemetry);
         arm = new DeepArm();
-        arm.init(hardwareMap);
+        arm.init(hardwareMap, telemetry);
         intake = new Intake();
         intake.init(hardwareMap);
 

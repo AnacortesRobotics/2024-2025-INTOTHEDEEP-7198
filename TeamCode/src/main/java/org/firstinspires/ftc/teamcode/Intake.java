@@ -11,8 +11,15 @@ public class Intake {
     private CRServo rightIn;
     private DigitalChannel intakeLimit;
     private ColorSensor colorSensor;
+    private Servo wrist;
 
     private IntakeState currentState = IntakeState.Stop;
+
+    public enum WristState {
+        Back,
+        Score,
+        Pickup
+    }
 
     public enum IntakeState {
         Stop,
@@ -33,6 +40,7 @@ public class Intake {
         rightIn = hMap.get(CRServo.class, "rightIn");
         intakeLimit = hMap.get(DigitalChannel.class, "intakeLimit");
         colorSensor = hMap.get(ColorSensor.class, "colorSensor");
+        wrist = hMap.get(Servo.class, "wrist");
 
     }
 
@@ -91,6 +99,20 @@ public class Intake {
         }
 
 
+    }
+
+    public void wristControl(WristState state) {
+        switch (state) {
+            case Back:
+                wrist.setPosition(.5);
+                break;
+            case Score:
+                wrist.setPosition(.8);
+                break;
+            case Pickup:
+                wrist.setPosition(1);
+                break;
+        }
     }
 
     public boolean isLimitDown() {
