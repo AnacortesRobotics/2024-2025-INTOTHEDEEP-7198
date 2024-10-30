@@ -11,8 +11,6 @@ import org.firstinspires.ftc.teamcode.kaicode.PIDFController;
 import java.lang.Math;
 import java.util.Locale;
 
-import static org.firstinspires.ftc.teamcode.LogsUtils.clamp;
-
 public class Chassis {
     //names motors
     private DcMotor leftFront;
@@ -25,6 +23,14 @@ public class Chassis {
     private static final int DEGREES_TO_BASKET = 225;
     private Pose2D position;
     private Pose2D posTarget;
+    private PIDFController pidfRotate = new PIDFController(0.1, 0, 0, 0, 0);
+
+    public enum MotorTesting {
+        lf,
+        lb,
+        rf,
+        rb
+    }
 
     
     public void init(HardwareMap hMap, Telemetry telemetry) {
@@ -58,11 +64,6 @@ public class Chassis {
         leftBack.setPower(forward - strafe - rotate);
         rightBack.setPower(forward + strafe + rotate);
 
-        String data = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", position.getX(DistanceUnit.INCH), position.getY(DistanceUnit.INCH), position.getHeading(AngleUnit.DEGREES));
-        telemetry.addData("Position", data);
-        String data2 = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", posTarget.getX(DistanceUnit.INCH), posTarget.getY(DistanceUnit.INCH), posTarget.getHeading(AngleUnit.DEGREES));
-        telemetry.addData("Position target", data2);
-        telemetry.update();
     }
 
     public void mecanumDriveFieldCentric(double vertical, double horizontal, double rotate) {
@@ -88,13 +89,18 @@ public class Chassis {
             mecanumDriveFieldCentric(forwardCorrect, horizontalCorrect, rotateCorrect);
             posTarget = pos;
             position = currentPos;
-
+            String data = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", position.getX(DistanceUnit.INCH), position.getY(DistanceUnit.INCH), position.getHeading(AngleUnit.DEGREES));
+            telemetry.addData("Position", data);
+            String data2 = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", posTarget.getX(DistanceUnit.INCH), posTarget.getY(DistanceUnit.INCH), posTarget.getHeading(AngleUnit.DEGREES));
+            telemetry.addData("Position target", data2);
+            telemetry.update();
         }
     }
 
-    public void orientToScore() {
+    public double orient(double targetAngle) {
         // math to rotate the robot to the correct angle
-        mecanumDriveFieldCentric(0, 0, clamp((DEGREES_TO_BASKET - odo.getPosition().getHeading(AngleUnit.DEGREES))/15,-0.5,0.5));
+        //mecanumDriveFieldCentric(0, 0, clamp((targetAngle - odo.getPosition().getHeading(AngleUnit.DEGREES))/15,-0.5,0.5));
+        return pidfRotate.update(targetAngle, odo.getPosition().getHeading(AngleUnit.DEGREES), .5, System.currentTimeMillis());
     }
 
     public Pose2D addPos(Pose2D pos1, Pose2D pos2) {
@@ -108,5 +114,27 @@ public class Chassis {
     {
         odo.bulkUpdate();
     }
+
+    public void resetOrient() {
+        pidfRotate.reset();
+    }
+
+    public void motorTest(double forward, double strafe, double rotate, MotorTesting test) {
+        switch (test) {
+            case lf:
+                leftFront.setPower(forward + strafe - rotate);
+                break;
+            case lb:
+                leftBack.setPower(forward - strafe - rotate);
+                break;
+            case rf:
+                rightFront.setPower(forward - strafe + rotate);
+                break;
+            case rb:
+                rightBack.setPower(forward + strafe + rotate);
+                break;
+        }
+    }
+
 }
 

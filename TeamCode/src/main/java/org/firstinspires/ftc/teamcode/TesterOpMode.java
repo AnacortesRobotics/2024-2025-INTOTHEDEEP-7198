@@ -9,7 +9,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 @TeleOp
-public class IntoDeepTeleOp extends OpMode {
+public class TesterOpMode extends OpMode {
     public Chassis driveChassis;
     private double forward;
     private double strafe;
@@ -51,7 +51,7 @@ public class IntoDeepTeleOp extends OpMode {
 
         driveChassis.updateOdo();
 
-        if (lastSecond == 0 || lastSecond - System.currentTimeMillis() >= 1000) {
+        if(lastSecond == 0 || lastSecond - System.currentTimeMillis() >= 1000) {
             lastSecond = System.currentTimeMillis();
             loopRate = finishedLoops;
             finishedLoops = 0;
@@ -60,10 +60,10 @@ public class IntoDeepTeleOp extends OpMode {
         forward = -gamepad1.left_stick_y;
         strafe = gamepad1.left_stick_x;
         rotate = -gamepad1.right_stick_x;
-
-        if (gamepad1.a) {
+        /*
+        if(gamepad1.a) {
             driveMode = true;
-        } else if (gamepad1.b) {
+        } else if(gamepad1.b) {
             driveMode = false;
         }
         if (gamepad1.right_bumper) {
@@ -72,15 +72,14 @@ public class IntoDeepTeleOp extends OpMode {
             turnPower = rotate;
             driveChassis.resetOrient();
         }
-        if (!driveMode) {
+        if(!driveMode) {
             driveChassis.mecanumDriveFieldCentric(forward, strafe, turnPower);
         } else {
             driveChassis.mecanumDrive(forward, strafe, turnPower);
         }
 
+*/
 
-//        if (gamepad2.right_trigger < 0.1) {
-//            intake.servoControl(IntakeState.In);
         if (gamepad2.x) {
             intake.servoControl(IntakeState.Stop);
         } else if (gamepad2.b) {
@@ -142,6 +141,35 @@ public class IntoDeepTeleOp extends OpMode {
             bumperMode = false;
         }
 
+        if (gamepad1.dpad_down) {
+            motorTesting = Chassis.MotorTesting.rb;
+        } else if (gamepad1.dpad_up) {
+            motorTesting = Chassis.MotorTesting.lf;
+        } else if (gamepad1.dpad_right) {
+            motorTesting = Chassis.MotorTesting.rf;
+        } else if (gamepad1.dpad_left) {
+            motorTesting = Chassis.MotorTesting.lb;
+        } else {
+            if(gamepad1.a) {
+                driveMode = true;
+            } else if(gamepad1.b) {
+                driveMode = false;
+            }
+            if (gamepad1.right_bumper) {
+                turnPower = driveChassis.orient(225);
+            } else {
+                turnPower = rotate;
+                driveChassis.resetOrient();
+            }
+            if(!driveMode) {
+                driveChassis.mecanumDriveFieldCentric(forward, strafe, turnPower);
+            } else {
+                driveChassis.mecanumDrive(forward, strafe, turnPower);
+            }
+        }
+        driveChassis.motorTest(forward, strafe, rotate, motorTesting);
+        telemetry.addData("Motor being tested", motorTesting);
+
         intake.wristControl(wristMode, telemetry);
 
         deepArm.setArmState(-gamepad2.left_stick_y, -gamepad2.right_stick_y, pickupMode);
@@ -156,4 +184,3 @@ public class IntoDeepTeleOp extends OpMode {
 
     }
 }
-

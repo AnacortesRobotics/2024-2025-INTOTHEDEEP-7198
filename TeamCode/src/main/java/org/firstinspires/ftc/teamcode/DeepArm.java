@@ -19,18 +19,23 @@ public class DeepArm {
     private double armBaseDegreesCurrent = armBaseDegrees;
     private long lastRotateTime = 0;
 
-    private static final int ARM_LENGTH_MIN = 5;
-    private static final int ARM_LENGTH_MAX = 450;
-    private static final double TICKS_PER_INCH = 41.3793;
-    private static final double TICKS_PER_REVOLUTION = 537.7 * 2;
-    private static final double STARTING_ANGLE = -33;
-    private static final double ARM_BASE_HEIGHT = 9.59375;
-    private static final double ARM_BASE_LENGTH = 14.34375;
+    private static final double TICKS_PER_INCH = 123.3793 * 2.67;
+    private static final double TICKS_PER_REVOLUTION = 5281.1;
+
+    private static final double STARTING_ANGLE = -50;
+    private static final double MAX_ANGLE = 95;
+    private static final double ARM_BASE_HEIGHT = 15.5;
+    private static final double ARM_BASE_LENGTH = 13.9375;
+    // axle on ground out to arm resting point on the ground
     private static final double ARM_FRONT_DISTANCE = 15.125;
-    private static final double ARM_EXTEND_SPEED = 0.15;
-    private static final double ARM_ROTATE_SPEED = 1.5;
-    private static final int ARM_ROTATE_MIN = (int) (STARTING_ANGLE * TICKS_PER_REVOLUTION / 360);
-    private static final int ARM_ROTATE_MAX = 400;
+
+    private static final int ARM_LENGTH_MIN = 5;
+    private static final int ARM_LENGTH_MAX = (9 * (int)TICKS_PER_INCH);
+    private static final int ARM_ROTATE_MIN =  5 * (int)TICKS_PER_REVOLUTION / 360;
+    private static final int ARM_ROTATE_MAX = 135 * (int)TICKS_PER_REVOLUTION / 360;
+
+    private static final double ARM_EXTEND_SPEED = 0.4 * 2.67;
+    private static final double ARM_ROTATE_SPEED = 2.5;
     private static final int DEGREES_PER_SECOND = 45;
     private Telemetry telemetry;
 
@@ -60,13 +65,14 @@ public class DeepArm {
         armBase.setTargetPosition(0);
         armBase.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         armBase.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        armBase.setDirection(DcMotorSimple.Direction.REVERSE);
 
         armExtend.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         armExtend.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         armExtend.setTargetPosition(0);
         armExtend.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-        armBase.setPIDFCoefficients(DcMotor.RunMode.RUN_TO_POSITION, new PIDFCoefficients(15, 0, 0 ,0));
+        armBase.setPIDFCoefficients(DcMotor.RunMode.RUN_TO_POSITION, new PIDFCoefficients(10, 0, 0 ,0));
         armExtend.setPIDFCoefficients(DcMotor.RunMode.RUN_TO_POSITION, new PIDFCoefficients(6, 0, 0, 0));
     }
 
@@ -74,11 +80,11 @@ public class DeepArm {
         armState = state;
         switch (state) {
             case Pickup:
-                setArmPosition(3, -2.5);
+                setArmPosition(-1.33, 5.6);
                 break;
             case Score:
                 // must change, test more
-                setArmPosition(6, 25);
+                setArmPosition(-15.125, 40.49);
                 break;
             case Lifted:
                 setArmPosition(1, ARM_BASE_HEIGHT);
@@ -90,7 +96,7 @@ public class DeepArm {
         }
 
     }
-
+// ToDo Has problems, needs to be fixed
     public void rotateArm(double degrees) {
         armBaseDegrees = degrees;
         if ((System.currentTimeMillis() - lastRotateTime) > 1000) {
@@ -98,17 +104,19 @@ public class DeepArm {
             return;
         }
 
-         if (Math.abs((armBaseDegrees - armBaseDegreesCurrent) / ((System.currentTimeMillis() - lastRotateTime) / 1000)) > DEGREES_PER_SECOND) {
-             armBaseDegreesCurrent = DEGREES_PER_SECOND * ((System.currentTimeMillis() - lastRotateTime) / 1000);
-         } else {
+//         if (Math.abs((armBaseDegrees - armBaseDegreesCurrent) / (double)((System.currentTimeMillis() - lastRotateTime) / 1000)) > DEGREES_PER_SECOND) {
+//             armBaseDegreesCurrent = DEGREES_PER_SECOND * ((double)(System.currentTimeMillis() - lastRotateTime) / 1000);
+//         } else {
              armBaseDegreesCurrent = armBaseDegrees;
-         }
+//         }
+        telemetry.addData("Arm base degrees current", armBaseDegreesCurrent);
         int armBaseTicks = (int)(((armBaseDegreesCurrent - STARTING_ANGLE) * TICKS_PER_REVOLUTION) / 360);
-        armBaseTicks = Math.max(armBaseTicks, ARM_ROTATE_MIN);
-        armBaseTicks = Math.min(armBaseTicks, ARM_ROTATE_MAX);
         telemetry.addData("Arm base ticks", armBaseTicks);
+         armBaseTicks = Math.max(armBaseTicks, ARM_ROTATE_MIN);
+        armBaseTicks = Math.min(armBaseTicks, ARM_ROTATE_MAX);
+
         armBase.setTargetPosition(armBaseTicks);
-        armBase.setPower(1);
+        armBase.setPower(0.4);
         lastRotateTime = System.currentTimeMillis();
     }
     public void rotateArmOffset(double speed) {
@@ -122,7 +130,7 @@ public class DeepArm {
         armExtendTicks = Math.min(armExtendTicks, ARM_LENGTH_MAX);
         telemetry.addData("Arm extend ticks", armExtendTicks);
         armExtend.setTargetPosition(armExtendTicks);
-        armExtend.setPower(0.8);
+        armExtend.setPower(1);
     }
     public void extendArmOffset(double speed) {
         extendArm(armExtendInches + speed * ARM_EXTEND_SPEED);

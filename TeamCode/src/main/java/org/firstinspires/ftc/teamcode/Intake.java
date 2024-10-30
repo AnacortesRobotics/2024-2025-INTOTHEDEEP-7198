@@ -14,6 +14,7 @@ public class Intake {
     private Servo wrist;
 
     private IntakeState currentState = IntakeState.Stop;
+    private WristState wristState = WristState.Back;
 
     public enum WristState {
         Back,
@@ -60,6 +61,9 @@ public class Intake {
         telemetry.addData("green from color sensor: ", colorSensor.green());
         telemetry.addData("blue from color sensor: ", colorSensor.blue());
         telemetry.addData("Color in intake: ", getIntakeColor());
+        telemetry.addData("Wrist position target", wrist.getPosition());
+        telemetry.addData("Wrist state", wristState);
+        telemetry.addData("Intake direction", currentState);
     }
 
     public void servoControl(IntakeState state) {
@@ -71,6 +75,7 @@ public class Intake {
                 break;
             case In:
                 if (!isLimitDown()) {
+                // removed !,
                     leftIn.setPower(-0.5);
                     rightIn.setPower(0.5);
                 }
@@ -88,11 +93,11 @@ public class Intake {
         int r = colorSensor.red();
         int g = colorSensor.green();
         int b = colorSensor.blue();
-        if ((r > b && r > g) && r > 1000) {
+        if (((r > b && r > g) && r > 1000) && r < 12000) {
             return BlockColor.Red;
-        } else if ((g > b && g > r) && g > 1000) {
+        } else if (((g > b && g > r) && g > 1000) && g < 12000) {
             return BlockColor.Yellow;
-        } else if ((b > r && b > g) && b > 1000) {
+        } else if (((b > r && b > g) && b > 1000) && b < 12000) {
             return BlockColor.Blue;
         } else {
             return BlockColor.Unknown;
@@ -101,19 +106,28 @@ public class Intake {
 
     }
 
-    public void wristControl(WristState state) {
+    public void wristControl(WristState state, Telemetry telemetry) {
+        boolean check = true;
+        telemetry.addData("Does it get here?", check);
+        telemetry.addData("Whats the state being passed?", state);
         switch (state) {
             case Back:
                 wrist.setPosition(.5);
+                telemetry.addData("is back working", check);
                 break;
             case Score:
-                wrist.setPosition(.8);
+                wrist.setPosition(.2);
+                telemetry.addData("is score working", check);
                 break;
             case Pickup:
-                wrist.setPosition(1);
+                wrist.setPosition(0);
+                telemetry.addData("is pickup working", check);
                 break;
         }
+        wristState = state;
+
     }
+
 
     public boolean isLimitDown() {
         return !intakeLimit.getState();
