@@ -21,23 +21,14 @@ import static org.firstinspires.ftc.teamcode.LogsUtils.*;
 @TeleOp
 @Config
 public class PinpointProcessorTest extends OpMode {
-    public static double X_OFFSET = -208.76;
-    public static double Y_OFFSET = -174.62;
+    public static double X_OFFSET = 205.44679701802843;
+    public static double Y_OFFSET = 169.75978033609064;
+    public static double TuningGain = 2;
 
     GoBildaPinpointDriver odo; // Declare OpMode member for the Odometry Computer
 
     double oldTime = 0;
     public Chassis driveChassis;
-
-//    boolean reset = false;
-//    int targetRotation = 90;
-
-    double X_in_off = 0;
-    double Y_in_off = 0;
-    double Rot_in_off = 0;
-
-    double GradientA = 0;
-    double GradientB = 0;
 
     @Override
     public void init() {
@@ -80,34 +71,6 @@ public class PinpointProcessorTest extends OpMode {
          */
         odo.bulkUpdate();
 
-        if (gamepad1.b){
-            try (FileWriter file = new FileWriter("OdometryOffsets.txt"))
-            {
-                file.write("" + X_OFFSET + "\n" + Y_OFFSET);
-            } catch (IOException ignored)
-            {
-                // oops
-            }
-//            odo.resetPosAndIMU(); //recalibrates the IMU and position
-//            odo.recalibrateIMU(); //recalibrates the IMU without resetting position
-        }
-
-        if(gamepad1.a)
-            toggleTuning = true;
-        if(gamepad1.x)
-            toggleTuning = false;
-
-        if (toggleTuning){
-            AutoTuneRotation();
-            odo.setOffsets(X_OFFSET, Y_OFFSET);
-        }
-        else
-        {
-            X_OFFSET = bestX;
-            Y_OFFSET = bestY;
-            odo.setOffsets(X_OFFSET, Y_OFFSET);
-        }
-
         double newTime = getRuntime();
         double loopTime = newTime-oldTime;
         double frequency = 1/loopTime;
@@ -118,14 +81,13 @@ public class PinpointProcessorTest extends OpMode {
          */
 
         Pose2D pos = odo.getPosition();
-        String data = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", pos.getX(DistanceUnit.CM)-X_in_off, pos.getY(DistanceUnit.CM)-Y_in_off, pos.getHeading(AngleUnit.DEGREES));
+        String data = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", pos.getX(DistanceUnit.CM), pos.getY(DistanceUnit.CM), pos.getHeading(AngleUnit.DEGREES));
         telemetry.addData("Position", data);
         telemetry.addData("X_OFFSET", X_OFFSET);
         telemetry.addData("Y_OFFSET", Y_OFFSET);
 
         telemetry.addData("Status", odo.getDeviceStatus());
 
-        telemetry.addData("Error", rotationScore);
 
         telemetry.addData("REV Hub Frequency: ", frequency); //prints the control system refresh rate
         telemetry.update();
@@ -133,46 +95,6 @@ public class PinpointProcessorTest extends OpMode {
         double forward = exponentialRemapAnalog(deadZone(-gamepad1.left_stick_y, 0.02),2);
         double strafe = exponentialRemapAnalog(deadZone(gamepad1.left_stick_x, 0.02),2);
         double rotate = exponentialRemapAnalog(deadZone(-gamepad1.right_stick_x, 0.02),2);
-//        driveChassis.mecanumDrive(forward, strafe, rotate);
-    }
-    public static double rotationScore = Double.MAX_VALUE;
-    double bestX = X_OFFSET;
-    double bestY = Y_OFFSET;
-
-    public void AutoTuneRotation() {
-        //rotate 90 degrees
-        if(Math.abs(odo.getPosition().getHeading(AngleUnit.DEGREES) - (90-Rot_in_off)) > 0.3)
-        {
-            Pose2D pos = odo.getPosition();
-            driveChassis.mecanumDrive(0,0,clamp(((90-Rot_in_off)-pos.getHeading(AngleUnit.DEGREES))/12,-0.5,0.5));
-
-            return;
-        }
-
-
-        if(Math.abs(odo.getPosX()-X_in_off)+Math.abs(odo.getPosY()-Y_in_off) < rotationScore)
-        {
-            //its better
-            rotationScore = Math.abs(odo.getPosX()-X_in_off)+Math.abs(odo.getPosY()-Y_in_off);
-
-            bestX = X_OFFSET;
-            bestY = Y_OFFSET;
-        }
-        else
-        {
-            //its worse
-            X_OFFSET = bestX;
-            Y_OFFSET = bestY;
-
-            bestX += (Math.random() * 2 - 1);
-            bestY += (Math.random() * 2 - 1);
-        }
-
-        // Reset datas here :>
-        X_in_off = odo.getPosX();
-        Y_in_off = odo.getPosY();
-        Rot_in_off = odo.getPosition().getHeading(AngleUnit.DEGREES);
-
-//      targetRotation += 90;
+        driveChassis.mecanumDrive(forward, strafe, rotate);
     }
 }

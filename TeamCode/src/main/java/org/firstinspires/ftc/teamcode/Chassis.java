@@ -41,7 +41,7 @@ public class Chassis {
         rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         odo = hMap.get(GoBildaPinpointDriver.class,"odo");
-        odo.setOffsets(0, 0);
+        odo.setOffsets(205.4467970180284, 169.7597803360906);
         odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_SWINGARM_POD);
         odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.FORWARD,
                 GoBildaPinpointDriver.EncoderDirection.FORWARD);
@@ -58,11 +58,11 @@ public class Chassis {
         leftBack.setPower(forward - strafe - rotate);
         rightBack.setPower(forward + strafe + rotate);
 
-        String data = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", position.getX(DistanceUnit.INCH), position.getY(DistanceUnit.INCH), position.getHeading(AngleUnit.DEGREES));
-        telemetry.addData("Position", data);
-        String data2 = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", posTarget.getX(DistanceUnit.INCH), posTarget.getY(DistanceUnit.INCH), posTarget.getHeading(AngleUnit.DEGREES));
-        telemetry.addData("Position target", data2);
-        telemetry.update();
+//        String data = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", position.getX(DistanceUnit.INCH), position.getY(DistanceUnit.INCH), position.getHeading(AngleUnit.DEGREES));
+//        telemetry.addData("Position", data);
+//        String data2 = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", posTarget.getX(DistanceUnit.INCH), posTarget.getY(DistanceUnit.INCH), posTarget.getHeading(AngleUnit.DEGREES));
+//        telemetry.addData("Position target", data2);
+//        telemetry.update();
     }
 
     public void mecanumDriveFieldCentric(double vertical, double horizontal, double rotate) {
