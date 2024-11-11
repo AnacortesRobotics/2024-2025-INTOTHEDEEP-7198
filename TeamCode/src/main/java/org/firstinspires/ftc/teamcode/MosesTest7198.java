@@ -9,7 +9,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 public class MosesTest7198 extends OpMode{
     
     public Chassis driveChassis;
-    public Arm arm;
+    //public Arm arm;
     private double forward;
     private double strafe;
     private double rotate;
@@ -22,8 +22,8 @@ public class MosesTest7198 extends OpMode{
         
         driveChassis = new Chassis();
         driveChassis.init(hardwareMap, telemetry);
-        arm = new Arm();
-        arm.init(hardwareMap);
+        //arm = new Arm();
+        //arm.init(hardwareMap);
         //arm.liftWrist();
     }
     
@@ -45,7 +45,7 @@ public class MosesTest7198 extends OpMode{
         } else if (gamepad2.dpad_down) {
             height = false;
         }
-        arm.wristControl(height);
+        //arm.wristControl(height);
         
         if (gamepad2.a) {
             handOpen = true;
@@ -53,7 +53,7 @@ public class MosesTest7198 extends OpMode{
             handOpen = false;
         }
         
-        arm.handControl(handOpen);
+        //arm.handControl(handOpen);
         
         if (gamepad2.x) {
             pickup = true;
@@ -61,11 +61,11 @@ public class MosesTest7198 extends OpMode{
             pickup = false;
         }
         
-        arm.pickupMode(pickup);
-        arm.armHeight(-gamepad2.right_stick_y);
-        arm.armExtender(-gamepad2.left_stick_y);
-        
-        arm.addTelemetry(telemetry);
+//        arm.pickupMode(pickup);
+//        arm.armHeight(-gamepad2.right_stick_y);
+//        arm.armExtender(-gamepad2.left_stick_y);
+//
+//        arm.addTelemetry(telemetry);
         telemetry.update();
         
     }

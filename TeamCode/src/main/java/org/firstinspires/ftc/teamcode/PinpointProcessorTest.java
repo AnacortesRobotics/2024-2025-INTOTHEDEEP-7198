@@ -5,6 +5,7 @@ import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.util.RobotLog;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
@@ -38,6 +39,8 @@ public class PinpointProcessorTest extends OpMode {
 
     double GradientA = 0;
     double GradientB = 0;
+   // if true then X, if false then Y
+    private boolean xOrY = true;
 
     @Override
     public void init() {
@@ -81,12 +84,14 @@ public class PinpointProcessorTest extends OpMode {
         odo.bulkUpdate();
 
         if (gamepad1.b){
-            try (FileWriter file = new FileWriter("OdometryOffsets.txt"))
+            try (FileWriter file = new FileWriter("%TMP%\\OdometryOffsets.txt"))
             {
-                file.write("" + X_OFFSET + "\n" + Y_OFFSET);
+                RobotLog.d("OO - ", X_OFFSET + Y_OFFSET);
+                //file.write("" + X_OFFSET + "\n" + Y_OFFSET);
+                telemetry.addData("Did it write?", true);
             } catch (IOException ignored)
             {
-                // oops
+                telemetry.addData("Did it write?", ignored.getMessage());
             }
 //            odo.resetPosAndIMU(); //recalibrates the IMU and position
 //            odo.recalibrateIMU(); //recalibrates the IMU without resetting position
@@ -106,6 +111,7 @@ public class PinpointProcessorTest extends OpMode {
             X_OFFSET = bestX;
             Y_OFFSET = bestY;
             odo.setOffsets(X_OFFSET, Y_OFFSET);
+            driveChassis.mecanumDrive(0,0,0);
         }
 
         double newTime = getRuntime();
@@ -141,33 +147,27 @@ public class PinpointProcessorTest extends OpMode {
 
     public void AutoTuneRotation() {
         //rotate 90 degrees
-        if(Math.abs(odo.getPosition().getHeading(AngleUnit.DEGREES) - (90-Rot_in_off)) > 0.3)
+        if(Math.abs(odo.getPosition().getHeading(AngleUnit.DEGREES) - (90+Rot_in_off) % 360) > 0.3)
         {
             Pose2D pos = odo.getPosition();
-            driveChassis.mecanumDrive(0,0,clamp(((90-Rot_in_off)-pos.getHeading(AngleUnit.DEGREES))/12,-0.5,0.5));
+            driveChassis.mecanumDrive(0,0,clamp((((90+Rot_in_off) % 360)-pos.getHeading(AngleUnit.DEGREES))/12,-0.5,0.5));
 
             return;
         }
 
+        if (xOrY) {
+            if (Math.abs(odo.getPosX() - X_in_off) < rotationScore) {
+                //its better
+                rotationScore = Math.abs(odo.getPosX() - X_in_off);
 
-        if(Math.abs(odo.getPosX()-X_in_off)+Math.abs(odo.getPosY()-Y_in_off) < rotationScore)
-        {
-            //its better
-            rotationScore = Math.abs(odo.getPosX()-X_in_off)+Math.abs(odo.getPosY()-Y_in_off);
+                bestX = X_OFFSET;
+            } else {
+                //its worse
+                X_OFFSET = bestX;
 
-            bestX = X_OFFSET;
-            bestY = Y_OFFSET;
+                bestX += (Math.random() * 2 - 1);
+            }
         }
-        else
-        {
-            //its worse
-            X_OFFSET = bestX;
-            Y_OFFSET = bestY;
-
-            bestX += (Math.random() * 2 - 1);
-            bestY += (Math.random() * 2 - 1);
-        }
-
         // Reset datas here :>
         X_in_off = odo.getPosX();
         Y_in_off = odo.getPosY();

@@ -42,8 +42,8 @@ public class IntoDeepTeleOp extends OpMode {
         intake = new Intake();
         intake.init(hardwareMap);
         deepArm = new DeepArm();
-        deepArm.init(hardwareMap, telemetry);
-        blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLACK);
+        deepArm.init(hardwareMap, telemetry, null);
+        blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.CONFETTI);
     }
 
     @Override
@@ -67,7 +67,7 @@ public class IntoDeepTeleOp extends OpMode {
             driveMode = false;
         }
         if (gamepad1.right_bumper) {
-            turnPower = driveChassis.orient(225);
+            turnPower = driveChassis.orient(45);
         } else {
             turnPower = rotate;
             driveChassis.resetOrient();
@@ -133,6 +133,22 @@ public class IntoDeepTeleOp extends OpMode {
                 } else if (wristMode == WristState.Score) {
                     wristMode = WristState.Pickup;
                 } else if (wristMode == WristState.Pickup) {
+                    wristMode = WristState.SubPick;
+                } else if (wristMode == WristState.SubPick) {
+                    wristMode = WristState.Back;
+                }
+            }
+            bumperMode = true;
+        }
+        if (gamepad2.left_bumper) {
+            if (!bumperMode) {
+                if (wristMode == WristState.Back) {
+                    wristMode = WristState.SubPick;
+                } else if (wristMode == WristState.SubPick) {
+                    wristMode = WristState.Pickup;
+                } else if (wristMode == WristState.Pickup) {
+                    wristMode = WristState.Score;
+                } else if (wristMode == WristState.Score) {
                     wristMode = WristState.Back;
                 }
             }
@@ -144,11 +160,14 @@ public class IntoDeepTeleOp extends OpMode {
 
         intake.wristControl(wristMode, telemetry);
 
-        deepArm.setArmState(-gamepad2.left_stick_y, -gamepad2.right_stick_y, pickupMode);
+        deepArm.setArmState(-gamepad2.left_stick_y, -gamepad2.right_stick_y, pickupMode, false);
+
+        telemetry.addData("Left stick y", gamepad2.left_stick_y);
+        telemetry.addData("Right stick y", gamepad2.right_stick_y);
 
         finishedLoops += 1;
         telemetry.addData("Loop rate", loopRate);
-        //telemetry.addData("Wrist state", wristMode);
+        telemetry.addData("Wrist state", wristMode);
         telemetry.addData("Drive mode", driveMode);
         intake.addTelemetry(telemetry);
         deepArm.addTelemetry(telemetry);

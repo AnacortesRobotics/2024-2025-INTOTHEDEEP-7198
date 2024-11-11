@@ -19,7 +19,8 @@ public class Intake {
     public enum WristState {
         Back,
         Score,
-        Pickup
+        Pickup,
+        SubPick
     }
 
     public enum IntakeState {
@@ -43,6 +44,7 @@ public class Intake {
         colorSensor = hMap.get(ColorSensor.class, "colorSensor");
         wrist = hMap.get(Servo.class, "wrist");
 
+        wrist.setPosition(0.9);
     }
 
     public void update() {
@@ -112,17 +114,20 @@ public class Intake {
         telemetry.addData("Whats the state being passed?", state);
         switch (state) {
             case Back:
-                wrist.setPosition(.5);
+                wrist.setPosition(.9);
                 telemetry.addData("is back working", check);
                 break;
             case Score:
-                wrist.setPosition(.2);
+                wrist.setPosition(.6);
                 telemetry.addData("is score working", check);
                 break;
             case Pickup:
-                wrist.setPosition(0);
+                wrist.setPosition(.4);
                 telemetry.addData("is pickup working", check);
                 break;
+            case SubPick:
+                wrist.setPosition(0);
+                telemetry.addData("is submersible pickup working", check);
         }
         wristState = state;
 
