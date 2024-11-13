@@ -17,6 +17,11 @@ import java.util.Locale;
 
 import static org.firstinspires.ftc.teamcode.LogsUtils.*;
 
+/**
+ * A test class for the pinpoint processors offsets and localization
+ * @author Logan R
+ *
+ */
 
 @TeleOp
 @Config
@@ -27,7 +32,9 @@ public class PinpointProcessorTest extends OpMode {
 
     GoBildaPinpointDriver odo; // Declare OpMode member for the Odometry Computer
 
+    // used to calculate the delta time for frequency readout
     double oldTime = 0;
+
     public Chassis driveChassis;
 
     @Override
@@ -50,18 +57,18 @@ public class PinpointProcessorTest extends OpMode {
 
         odo.resetPosAndIMU();
 
+        // print pinpoint device info
         telemetry.addData("Status", "Initialized");
-        telemetry.addData("X offset", odo.getXOffset());
-        telemetry.addData("Y offset", odo.getYOffset());
+        telemetry.addData("X_OFFSET", X_OFFSET);
+        telemetry.addData("Y_OFFSET", Y_OFFSET);
         telemetry.addData("Device Version Number:", odo.getDeviceVersion());
         telemetry.addData("Device Scalar", odo.getYawScalar());
         telemetry.update();
 
+        // set up the drive chassis and corresponding systems
         driveChassis = new Chassis();
         driveChassis.init(hardwareMap, telemetry);
     }
-
-    boolean toggleTuning = false;
 
     @Override
     public void loop() {
@@ -71,15 +78,14 @@ public class PinpointProcessorTest extends OpMode {
          */
         odo.bulkUpdate();
 
+        // frequency calculation
         double newTime = getRuntime();
         double loopTime = newTime-oldTime;
         double frequency = 1/loopTime;
         oldTime = newTime;
 
-        /*
-        gets the current Position (x & y in cm, and heading in degrees) of the robot, and prints it.
-         */
 
+        //gets the current Position (x & y in cm, and heading in degrees) of the robot, and prints it.
         Pose2D pos = odo.getPosition();
         String data = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", pos.getX(DistanceUnit.CM), pos.getY(DistanceUnit.CM), pos.getHeading(AngleUnit.DEGREES));
         telemetry.addData("Position", data);
@@ -92,6 +98,7 @@ public class PinpointProcessorTest extends OpMode {
         telemetry.addData("REV Hub Frequency: ", frequency); //prints the control system refresh rate
         telemetry.update();
 
+        // filtered movement for offset testing
         double forward = exponentialRemapAnalog(deadZone(-gamepad1.left_stick_y, 0.02),2);
         double strafe = exponentialRemapAnalog(deadZone(gamepad1.left_stick_x, 0.02),2);
         double rotate = exponentialRemapAnalog(deadZone(-gamepad1.right_stick_x, 0.02),2);

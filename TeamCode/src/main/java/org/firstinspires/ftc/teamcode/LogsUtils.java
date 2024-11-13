@@ -1,7 +1,9 @@
 package org.firstinspires.ftc.teamcode;
 
-/**A Utility class created by Logan Rainchild for FTC robotics 2023-present
+/**A Utility class for FTC robotics 2023-present
  * Best wishes and happy programming!
+ *
+ * @author Logan R
  */
 public class LogsUtils {
 
