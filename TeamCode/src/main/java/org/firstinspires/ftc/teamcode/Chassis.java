@@ -13,6 +13,12 @@ import java.util.Locale;
 
 import static org.firstinspires.ftc.teamcode.LogsUtils.clamp;
 
+/**
+ * Chassis
+ *
+ * @author Little_bear
+ * @author Logan R
+ */
 public class Chassis {
     //names motors
     private DcMotor leftFront;
@@ -26,7 +32,7 @@ public class Chassis {
     private Pose2D position;
     private Pose2D posTarget;
 
-    
+    // Initialize Chassis hardware mapping
     public void init(HardwareMap hMap, Telemetry telemetry) {
         //Initailizes motors
         leftFront = hMap.get(DcMotor.class, "leftFront");
@@ -50,7 +56,13 @@ public class Chassis {
 
         this.telemetry = telemetry;
     }
-    
+
+    /** Sets the motor powers by mixing input powers
+     *
+     * @param forward the front/back control axis
+     * @param strafe the left/right control axis
+     * @param rotate the rotation control axis
+     */
     public void mecanumDrive(double forward, double strafe, double rotate) {
         // math to move and turn
         leftFront.setPower(forward + strafe - rotate);
@@ -65,6 +77,12 @@ public class Chassis {
 //        telemetry.update();
     }
 
+    /** A driving mode that uses IMU heading to move the robot along world axis no matter the rotation of the robot
+     *
+     * @param vertical movement input along Global y-axis
+     * @param horizontal movement input along Global x-axis
+     * @param rotate the rotation control axis
+     */
     public void mecanumDriveFieldCentric(double vertical, double horizontal, double rotate) {
 
         double heading = -odo.getHeading();
