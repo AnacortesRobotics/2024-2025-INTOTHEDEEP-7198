@@ -1,8 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
-import org.firstinspires.ftc.teamcode.Intake.IntakeState;
-import org.firstinspires.ftc.teamcode.Intake.WristState;
+import org.firstinspires.ftc.teamcode.Intake.WristMode;
 import org.firstinspires.ftc.teamcode.DeepArm.ArmMode;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
@@ -25,7 +24,7 @@ public class TesterOpMode extends OpMode {
     private int finishedLoops = 0;
     private long lastSecond = 0;
     private int loopRate = 0;
-    private WristState wristMode = WristState.Back;
+    private WristMode wristMode = WristMode.Back;
     private boolean bumperMode = false;
     private double turnPower = 0;
     private Intake.BlockColor ledColor = Intake.BlockColor.Unknown;
@@ -40,7 +39,7 @@ public class TesterOpMode extends OpMode {
         blinkinLED = hardwareMap.get(RevBlinkinLedDriver.class, "blinkinLED");
 
         intake = new Intake();
-        intake.init(hardwareMap);
+        intake.init(hardwareMap, telemetry);
         deepArm = new DeepArm();
         deepArm.init(hardwareMap, telemetry, null);
         blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLACK);
@@ -49,7 +48,7 @@ public class TesterOpMode extends OpMode {
     @Override
     public void loop() {
 
-        deepArm.setArmState(gamepad2.left_stick_y, gamepad2.right_stick_y, ArmMode.Off, false);
+        deepArm.setArmState(gamepad2.left_stick_y, gamepad2.right_stick_y, ArmMode.Off);
 
     }
 }

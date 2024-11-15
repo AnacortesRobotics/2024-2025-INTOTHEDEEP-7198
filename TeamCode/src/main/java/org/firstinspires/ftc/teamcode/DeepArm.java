@@ -16,7 +16,7 @@ public class DeepArm {
     private double armBaseDegrees = STARTING_ANGLE + 4;
     private double armExtendInches = 0;
     private boolean pickupMode = false;
-    private ArmMode armState = ArmMode.Off;
+    private ArmMode armMode = ArmMode.Off;
     private double armBaseDegreesCurrent = armBaseDegrees;
     private long lastRotateTime = 0;
     private int count;
@@ -25,7 +25,7 @@ public class DeepArm {
     private static final double TICKS_PER_REVOLUTION = 5281.1;
 
     private static final double STARTING_ANGLE = -50;
-    private static final double MAX_ANGLE = 95;
+    private static final double MAX_ANGLE = 90;
     private static final double ARM_BASE_HEIGHT = 15.5;
     private static final double ARM_BASE_LENGTH = 13.9375;
     // axle on ground out to arm resting point on the ground
@@ -34,7 +34,7 @@ public class DeepArm {
     private static final int ARM_LENGTH_MIN = 5;
     private static final int ARM_LENGTH_MAX = (9 * (int)TICKS_PER_INCH);
     private static final int ARM_ROTATE_MIN =  5 * (int)TICKS_PER_REVOLUTION / 360;
-    private static final int ARM_ROTATE_MAX = 145 * (int)TICKS_PER_REVOLUTION / 360;
+    private static final int ARM_ROTATE_MAX = (int)((MAX_ANGLE - STARTING_ANGLE) * TICKS_PER_REVOLUTION / 360);
 
     private static final double ARM_EXTEND_SPEED = 0.4 * 2.67;
     private static final double ARM_ROTATE_SPEED = 2.5;
@@ -45,13 +45,25 @@ public class DeepArm {
     private LinearOpMode opMode;
 
     private long armModeTime = 0;
-    private boolean isRotateFar = true;
+    private boolean isRotateFar = false;
+    private ArmState armState = ArmState.Stop;
+    private double degreesTarget = 0;
+    private double inchesTarget = 0;
+
+    private boolean debugFlag = false;
 
     public enum ArmMode {
         Pickup,
         Score,
         Lifted,
         Off
+    }
+
+    public enum ArmState {
+        Stop,
+        Retract,
+        FarMove,
+        NearMove
     }
 
     private double mapRange(double value, double inputStart, double inputEnd, double outputStart, double outputEnd) {
@@ -86,67 +98,23 @@ public class DeepArm {
         armExtend.setPIDFCoefficients(DcMotor.RunMode.RUN_TO_POSITION, new PIDFCoefficients(10, 0, 0, 0));
     }
 
-    public void setArmState(double rotation, double extendInches, ArmMode state, boolean doBlock) {
+    public void setArmState(double rotateSpeed, double extendSpeed, ArmMode mode) {
         while (true) {
-            if (state != armState) {
+            if (mode != armMode) {
                 armModeTime = System.currentTimeMillis();
             }
-            if (state == ArmMode.Pickup && armState == ArmMode.Lifted) {
-                isRotateFar = false;
-            } else if (state == ArmMode.Lifted && armState == ArmMode.Pickup) {
-                isRotateFar = false;
-            } else if (state != armState) {
-                isRotateFar = true;
-            }
-            armState = state;
-            telemetry.addData("Rotation input", rotation);
-            telemetry.addData("Extend inches input", extendInches);
-            switch (state) {
-                case Pickup:
-                    if (!isRotateFar) {
-                        setArmPosition(-1.33, 5.6);
-                    } else {
-                        extendArm(0);
-                        if (armExtend.getCurrentPosition() < TICKS_PER_INCH / 1.5) {
-                            rotateArm(-35);
-                            if (armBase.getCurrentPosition() > TICKS_PER_REVOLUTION / (360.0 / 33.0)) {
-                                isRotateFar = false;
-                            }
-                        }
-                    }
-                    break;
-                case Score:
-                    if (!isRotateFar) {
-                        setArmPosition(-15.125, 40.49);
-                    } else {
-                        extendArm(0);
-                        if (armExtend.getCurrentPosition() < TICKS_PER_INCH / 1.5) {
-                            rotateArm(100);
-                            if (armBase.getCurrentPosition() > TICKS_PER_REVOLUTION / (360.0 / 94.0)) {
-                                isRotateFar = false;
-                            }
-                        }
-                    }
-                    break;
-                case Lifted:
-                    if (!isRotateFar) {
-                        setArmPosition(1, ARM_BASE_HEIGHT);
-                    } else {
-                        extendArm(0);
-                        if (armExtend.getCurrentPosition() < TICKS_PER_INCH / 1.5) {
-                            rotateArm(ARM_BASE_HEIGHT);
-                            if (armBase.getCurrentPosition() > TICKS_PER_REVOLUTION / (360.0 / 2.0)) {
-                                isRotateFar = false;
-                            }
-                        }
-                    }
-                    break;
+            setArmTarget(mode);
+            telemetry.addData("Rotation input", rotateSpeed);
+            telemetry.addData("Extend inches input", extendSpeed);
+            switch (mode) {
                 case Off:
-                    rotateArmOffset(rotation);
-                    extendArmOffset(extendInches);
+                    rotateArmOffset(rotateSpeed);
+                    extendArmOffset(extendSpeed);
                     break;
+                default:
+                    moveArm();
             }
-            if (opMode == null || !doBlock || opMode.isStopRequested()) {
+            if (opMode == null || opMode.isStopRequested()) {
                 break;
             }
             if (isAtTarget() && !isRotateFar) {
@@ -156,12 +124,78 @@ public class DeepArm {
 
     }
 
+    public void update() {
+        telemetry.addData("Arm state case", armState);
+        switch (armState) {
+            case Stop:
+                return;
+            case Retract:
+                retractArm();
+                if(isAtTarget()) {
+                    armState = ArmState.FarMove;
+                }
+                return;
+            case FarMove:
+                moveArmFar();
+                if (isAtTarget()) {
+                    armState = ArmState.NearMove;
+                }
+                return;
+            case NearMove:
+                moveArm();
+                if (isAtTarget()) {
+                    armState = ArmState.Stop;
+                }
+        }
+
+    }
+
+    public void moveArm() {
+        rotateArm(degreesTarget);
+        extendArm(inchesTarget);
+    }
+
+    public void moveArmFar() {
+        rotateArm(degreesTarget);
+    }
+
+    public void retractArm() {
+        extendArm(0);
+    }
+
+    public void setArmTarget(ArmMode mode) {
+        if (mode == ArmMode.Pickup && armMode == ArmMode.Lifted) {
+            armState = ArmState.NearMove;
+        } else if (mode == ArmMode.Lifted && armMode == ArmMode.Pickup) {
+            armState = ArmState.NearMove;
+        } else if (mode != armMode) {
+            armState = ArmState.Retract;
+        }
+        armMode = mode;
+        switch (mode) {
+            case Pickup:
+                degreesTarget = -28;
+                inchesTarget = 2;
+                break;
+            case Lifted:
+                degreesTarget = ARM_BASE_HEIGHT - 5;
+                inchesTarget = 0;
+                break;
+            case Score:
+                degreesTarget = 90;
+                inchesTarget = 10;
+                break;
+            case Off:
+                return;
+        }
+    }
+
     public void rotateArm(double degrees) {
         armBaseDegrees = degrees;
-        if ((System.currentTimeMillis() - lastRotateTime) > 1000) {
-            lastRotateTime = System.currentTimeMillis();
-            return;
-        }
+//        if ((System.currentTimeMillis() - lastRotateTime) > 1000) {
+//            lastRotateTime = System.currentTimeMillis();
+//            return;
+//        }
 
 //         if (Math.abs((armBaseDegrees - armBaseDegreesCurrent) / (double)((System.currentTimeMillis() - lastRotateTime) / 1000)) > DEGREES_PER_SECOND) {
 //             armBaseDegreesCurrent = DEGREES_PER_SECOND * ((double)(System.currentTimeMillis() - lastRotateTime) / 1000);
@@ -175,8 +209,8 @@ public class DeepArm {
         armBaseTicks = min(armBaseTicks, ARM_ROTATE_MAX);
 
         armBase.setTargetPosition(armBaseTicks);
-        armBase.setPower(0.4);
-        lastRotateTime = System.currentTimeMillis();
+        armBase.setPower(0.6);
+        //lastRotateTime = System.currentTimeMillis();
     }
     public void rotateArmOffset(double speed) {
         rotateArm(armBaseDegrees + speed * ARM_ROTATE_SPEED);
@@ -217,8 +251,6 @@ public class DeepArm {
 
     }
 
-
-
     public void addTelemetry(Telemetry telemetry) {
         count += 1;
         telemetry.addData("Arm rotation target", armBase.getTargetPosition());
@@ -228,7 +260,12 @@ public class DeepArm {
         telemetry.addData("Arm extention actual", armExtend.getCurrentPosition());
         telemetry.addData("Arm extention inches", armExtendInches);
         telemetry.addData("Times called", count);
-        telemetry.addData("Arm mode", armState);
+        telemetry.addData("Arm mode", armMode);
+        telemetry.addData("Did it reach (the gameshow)", debugFlag);
+    }
+
+    public boolean isStopped() {
+        return armState == ArmState.Stop;
     }
 
     public boolean isAtTarget() {

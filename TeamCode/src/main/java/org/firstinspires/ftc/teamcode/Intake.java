@@ -1,7 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
 
-import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.robotcore.hardware.*;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
@@ -14,13 +13,26 @@ public class Intake {
     private Servo wrist;
 
     private IntakeState currentState = IntakeState.Stop;
-    private WristState wristState = WristState.Back;
+    private WristMode wristMode = WristMode.Back;
+    private WristState wristState = WristState.CanMove;
 
-    public enum WristState {
+    private long lastOutputTime = 0;
+    private long lastWristTime = 0;
+    private double lastWristPosition = 0;
+    private Telemetry telemetry;
+    private double delayMs = 0;
+    private long lastWristTargetCall = 0;
+
+    public enum WristMode {
         Back,
         Score,
         Pickup,
         SubPick
+    }
+
+    public enum WristState {
+        CanMove,
+        Wait,
     }
 
     public enum IntakeState {
@@ -36,7 +48,7 @@ public class Intake {
         Red
     }
 
-    public void init(HardwareMap hMap) {
+    public void init(HardwareMap hMap, Telemetry telemetry) {
         // Initailizes the servos
         leftIn = hMap.get(CRServo.class, "leftIn");
         rightIn = hMap.get(CRServo.class, "rightIn");
@@ -44,27 +56,36 @@ public class Intake {
         colorSensor = hMap.get(ColorSensor.class, "colorSensor");
         wrist = hMap.get(Servo.class, "wrist");
 
+        this.telemetry = telemetry;
+
         wrist.setPosition(0.9);
     }
 
     public void update() {
-        switch (currentState) {
-            case In:
-                if (isLimitDown()) {
-                    servoControl(IntakeState.Stop);
-                }
+        if(isIntakeDone()) {
+            servoControl(IntakeState.Stop);
         }
-
+        if (wristState == WristState.Wait && System.currentTimeMillis() - lastWristTargetCall > delayMs) {
+            wristControl(wristMode);
+            wristState = WristState.CanMove;
+        }
     }
 
-    public void addTelemetry(Telemetry telemetry) {
+    public void setWristTarget(WristMode mode, double delay) {
+        lastWristTargetCall = System.currentTimeMillis();
+        delayMs = delay;
+        wristMode = mode;
+        wristState = WristState.Wait;
+    }
+
+    public void addTelemetry() {
         telemetry.addData("Is button pressed? ", isLimitDown());
         telemetry.addData("red from color sensor: ", colorSensor.red());
         telemetry.addData("green from color sensor: ", colorSensor.green());
         telemetry.addData("blue from color sensor: ", colorSensor.blue());
         telemetry.addData("Color in intake: ", getIntakeColor());
         telemetry.addData("Wrist position target", wrist.getPosition());
-        telemetry.addData("Wrist state", wristState);
+        telemetry.addData("Wrist state", wristMode);
         telemetry.addData("Intake direction", currentState);
     }
 
@@ -85,6 +106,7 @@ public class Intake {
             case Out:
                 leftIn.setPower(0.5);
                 rightIn.setPower(-0.5);
+                lastOutputTime = System.currentTimeMillis();
                 break;
         }
 
@@ -104,15 +126,15 @@ public class Intake {
         } else {
             return BlockColor.Unknown;
         }
-
-
     }
 
-    public void wristControl(WristState state, Telemetry telemetry) {
+    public void wristControl(WristMode mode) {
         boolean check = true;
         telemetry.addData("Does it get here?", check);
-        telemetry.addData("Whats the state being passed?", state);
-        switch (state) {
+        telemetry.addData("Whats the state being passed?", mode);
+        lastWristTime = System.currentTimeMillis();
+        lastWristPosition = wrist.getPosition();
+        switch (mode) {
             case Back:
                 wrist.setPosition(.9);
                 telemetry.addData("is back working", check);
@@ -122,17 +144,29 @@ public class Intake {
                 telemetry.addData("is score working", check);
                 break;
             case Pickup:
-                wrist.setPosition(.4);
+                wrist.setPosition(.36);
                 telemetry.addData("is pickup working", check);
                 break;
             case SubPick:
                 wrist.setPosition(0);
                 telemetry.addData("is submersible pickup working", check);
         }
-        wristState = state;
-
+        wristMode = mode;
     }
 
+    public boolean isIntakeDone() {
+        if(currentState == IntakeState.In) {
+            return isLimitDown();
+        } else if (currentState == IntakeState.Out) {
+            return System.currentTimeMillis() - lastOutputTime > 500;
+        }
+        return true;
+    }
+
+    public boolean isWristDone() {
+        return ((System.currentTimeMillis() - lastWristTime) > Math.abs(lastWristPosition - wrist.getPosition()) * 1000)
+                && wristState == WristState.CanMove;
+    }
 
     public boolean isLimitDown() {
         return !intakeLimit.getState();

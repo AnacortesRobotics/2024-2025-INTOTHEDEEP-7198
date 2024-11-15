@@ -2,7 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import org.firstinspires.ftc.teamcode.Intake.IntakeState;
-import org.firstinspires.ftc.teamcode.Intake.WristState;
+import org.firstinspires.ftc.teamcode.Intake.WristMode;
 import org.firstinspires.ftc.teamcode.DeepArm.ArmMode;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
@@ -25,7 +25,7 @@ public class IntoDeepTeleOp extends OpMode {
     private int finishedLoops = 0;
     private long lastSecond = 0;
     private int loopRate = 0;
-    private WristState wristMode = WristState.Back;
+    private WristMode wristMode = WristMode.Back;
     private boolean bumperMode = false;
     private double turnPower = 0;
     private Intake.BlockColor ledColor = Intake.BlockColor.Unknown;
@@ -40,7 +40,7 @@ public class IntoDeepTeleOp extends OpMode {
         blinkinLED = hardwareMap.get(RevBlinkinLedDriver.class, "blinkinLED");
 
         intake = new Intake();
-        intake.init(hardwareMap);
+        intake.init(hardwareMap, telemetry);
         deepArm = new DeepArm();
         deepArm.init(hardwareMap, telemetry, null);
         blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.CONFETTI);
@@ -128,28 +128,28 @@ public class IntoDeepTeleOp extends OpMode {
 
         if (gamepad2.right_bumper) {
             if (!bumperMode) {
-                if (wristMode == WristState.Back) {
-                    wristMode = WristState.Score;
-                } else if (wristMode == WristState.Score) {
-                    wristMode = WristState.Pickup;
-                } else if (wristMode == WristState.Pickup) {
-                    wristMode = WristState.SubPick;
-                } else if (wristMode == WristState.SubPick) {
-                    wristMode = WristState.Back;
+                if (wristMode == WristMode.Back) {
+                    wristMode = WristMode.Score;
+                } else if (wristMode == WristMode.Score) {
+                    wristMode = WristMode.Pickup;
+                } else if (wristMode == WristMode.Pickup) {
+                    wristMode = WristMode.SubPick;
+                } else if (wristMode == WristMode.SubPick) {
+                    wristMode = WristMode.Back;
                 }
             }
             bumperMode = true;
         }
         if (gamepad2.left_bumper) {
             if (!bumperMode) {
-                if (wristMode == WristState.Back) {
-                    wristMode = WristState.SubPick;
-                } else if (wristMode == WristState.SubPick) {
-                    wristMode = WristState.Pickup;
-                } else if (wristMode == WristState.Pickup) {
-                    wristMode = WristState.Score;
-                } else if (wristMode == WristState.Score) {
-                    wristMode = WristState.Back;
+                if (wristMode == WristMode.Back) {
+                    wristMode = WristMode.SubPick;
+                } else if (wristMode == WristMode.SubPick) {
+                    wristMode = WristMode.Pickup;
+                } else if (wristMode == WristMode.Pickup) {
+                    wristMode = WristMode.Score;
+                } else if (wristMode == WristMode.Score) {
+                    wristMode = WristMode.Back;
                 }
             }
             bumperMode = true;
@@ -158,9 +158,9 @@ public class IntoDeepTeleOp extends OpMode {
             bumperMode = false;
         }
 
-        intake.wristControl(wristMode, telemetry);
+        intake.wristControl(wristMode);
 
-        deepArm.setArmState(-gamepad2.left_stick_y, -gamepad2.right_stick_y, pickupMode, false);
+        deepArm.setArmState(-gamepad2.left_stick_y, -gamepad2.right_stick_y, pickupMode);
 
         telemetry.addData("Left stick y", gamepad2.left_stick_y);
         telemetry.addData("Right stick y", gamepad2.right_stick_y);
@@ -169,7 +169,7 @@ public class IntoDeepTeleOp extends OpMode {
         telemetry.addData("Loop rate", loopRate);
         telemetry.addData("Wrist state", wristMode);
         telemetry.addData("Drive mode", driveMode);
-        intake.addTelemetry(telemetry);
+        intake.addTelemetry();
         deepArm.addTelemetry(telemetry);
         telemetry.update();
 

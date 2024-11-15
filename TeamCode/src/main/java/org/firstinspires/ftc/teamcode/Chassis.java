@@ -22,9 +22,15 @@ public class Chassis {
     private Telemetry telemetry;
 
     private static final int DEGREES_TO_BASKET = 225;
-    private Pose2D position;
+    private Pose2D currentPos = new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 0);
     private Pose2D posTarget = new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 0);
-    private PIDFController pidfRotate = new PIDFController(0.01, 0, 0, 0, 0);
+    private double maxSpeed = 1;
+
+    private ChassisState currentState = ChassisState.Stop;
+
+    private PIDFController pidfForward = new PIDFController(0.2, 0, 0, 0, 0);
+    private PIDFController pidfHorizontal = new PIDFController(0.2, 0, 0, 0, 0);
+    private PIDFController pidfRotate = new PIDFController(0.07, 0, 0, 0, 0);
 
     public enum MotorTesting {
         lf,
@@ -33,6 +39,10 @@ public class Chassis {
         rb
     }
 
+    public enum ChassisState {
+        Stop,
+        Moving
+    }
     
     public void init(HardwareMap hMap, Telemetry telemetry) {
         //Initailizes motors
@@ -56,58 +66,90 @@ public class Chassis {
         odo.resetPosAndIMU();
 
         this.telemetry = telemetry;
+
+        pidfForward.setOutputClamping(-1, 1);
+        pidfHorizontal.setOutputClamping(-1, 1);
+        pidfRotate.setOutputClamping(-1, 1);
     }
     
     public void mecanumDrive(double forward, double strafe, double rotate) {
         // math to move and turn
-        leftFront.setPower(forward + strafe - rotate);
-        rightFront.setPower(forward - strafe + rotate);
-        leftBack.setPower(forward - strafe - rotate);
-        rightBack.setPower(forward + strafe + rotate);
+        leftFront.setPower((forward + strafe - rotate) * maxSpeed);
+        rightFront.setPower((forward - strafe + rotate) * maxSpeed);
+        leftBack.setPower((forward - strafe - rotate) * maxSpeed);
+        rightBack.setPower((forward + strafe + rotate) * maxSpeed);
 
     }
 
     public void mecanumDriveFieldCentric(double vertical, double horizontal, double rotate) {
-
         double heading = -odo.getHeading();
         double robotVert = Math.sin(heading) * horizontal + Math.cos(heading) * vertical;
         double robotHoriz = Math.cos(heading) * horizontal - Math.sin(heading) * vertical;
         mecanumDrive(robotVert, robotHoriz, rotate);
     }
 
-    public void driveToPosition(Pose2D pos, Telemetry telemetry, LinearOpMode opMode, String name, double maxSpeed, boolean doMove) {
-        odo.bulkUpdate();
-        PIDFController pidfForward = new PIDFController(0.16, 0, 0, 0, 0);
-        PIDFController pidfHorizontal = new PIDFController(0.16, 0, 0, 0, 0);
-        PIDFController pidfRotate = new PIDFController(0.11, 0, 0, 0, 0);
-        pidfForward.setOutputClamping(-maxSpeed, maxSpeed);
-        pidfHorizontal.setOutputClamping(-maxSpeed, maxSpeed);
-        pidfRotate.setOutputClamping(-maxSpeed, maxSpeed);
-        Pose2D currentPos = getPosition();
-        pos = addPos(pos, posTarget);
-        while(Math.abs(pos.getX(DistanceUnit.INCH) - currentPos.getX(DistanceUnit.INCH)) >= 0.5 || Math.abs(pos.getY(DistanceUnit.INCH) - currentPos.getY(DistanceUnit.INCH)) >= 0.5 || Math.abs(pos.getHeading(AngleUnit.DEGREES) - currentPos.getHeading(AngleUnit.DEGREES)) >= 3) {
-            odo.bulkUpdate();
-            currentPos = getPosition();
-            double forwardCorrect = pidfForward.updateClamped(pos.getY(DistanceUnit.INCH), currentPos.getY(DistanceUnit.INCH), System.currentTimeMillis());
-            double horizontalCorrect = pidfHorizontal.updateClamped(pos.getX(DistanceUnit.INCH), currentPos.getX(DistanceUnit.INCH), System.currentTimeMillis());
-            double rotateCorrect = pidfRotate.updateClamped(pos.getHeading(AngleUnit.DEGREES), currentPos.getHeading(AngleUnit.DEGREES), System.currentTimeMillis());
-            if (doMove) {
-                mecanumDriveFieldCentric(forwardCorrect, horizontalCorrect, rotateCorrect);
-            }
-            posTarget = pos;
-            position = currentPos;
-            String data2 = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", posTarget.getX(DistanceUnit.INCH), posTarget.getY(DistanceUnit.INCH), posTarget.getHeading(AngleUnit.DEGREES));
-            telemetry.addData("Position target", data2);
-            String data3 = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", horizontalCorrect, forwardCorrect, rotateCorrect);
-            telemetry.addData("Outputs to the motors", data3);
-            telemetry.addData("Name of loop", name);
-            telemetry.update();
-            updateOdo();
+    public void driveToPosition(Pose2D pos, LinearOpMode opMode, String name, double maxSpeed, boolean doMove) {
+        setTarget(pos);
+        while(!atTarget()) {
+            moveUpdate();
             if (opMode.isStopRequested()) {
                 break;
             }
         }
-    mecanumDriveFieldCentric(0, 0, 0);
+        mecanumDriveFieldCentric(0, 0, 0);
+    }
+
+    public void update() {
+        switch (currentState) {
+            case Stop:
+                return;
+            case Moving:
+                if(atTarget()) {
+                    currentState = ChassisState.Stop;
+                    mecanumDriveFieldCentric(0, 0, 0);
+                    return;
+                }
+                moveUpdate();
+                return;
+        }
+        telemetry.addData("Chassis state", currentState);
+    }
+
+    public void moveUpdate() {
+        odo.bulkUpdate();
+        currentPos = getPosition();
+        double forwardCorrect = pidfForward.updateClamped(posTarget.getY(DistanceUnit.INCH), currentPos.getY(DistanceUnit.INCH), System.currentTimeMillis());
+        double horizontalCorrect = pidfHorizontal.updateClamped(posTarget.getX(DistanceUnit.INCH), currentPos.getX(DistanceUnit.INCH), System.currentTimeMillis());
+        double rotateCorrect = pidfRotate.updateClamped(posTarget.getHeading(AngleUnit.DEGREES), currentPos.getHeading(AngleUnit.DEGREES), System.currentTimeMillis());
+//        if (doMove) {
+        mecanumDriveFieldCentric(forwardCorrect, horizontalCorrect, rotateCorrect);
+//        }
+        String data2 = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", posTarget.getX(DistanceUnit.INCH), posTarget.getY(DistanceUnit.INCH), posTarget.getHeading(AngleUnit.DEGREES));
+        telemetry.addData("Position target", data2);
+        String data3 = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", horizontalCorrect, forwardCorrect, rotateCorrect);
+        telemetry.addData("Outputs to the motors", data3);
+        //telemetry.addData("Name of loop", name);
+        updateOdo();
+    }
+
+    public void setMaxSpeed(double maxSpeed) {
+        this.maxSpeed = maxSpeed;
+    }
+
+    public boolean atTarget() {
+        return Math.abs(posTarget.getX(DistanceUnit.INCH) - currentPos.getX(DistanceUnit.INCH)) <= 0.5 &&
+                Math.abs(posTarget.getY(DistanceUnit.INCH) - currentPos.getY(DistanceUnit.INCH)) <= 0.5 &&
+                Math.abs(posTarget.getHeading(AngleUnit.DEGREES) - currentPos.getHeading(AngleUnit.DEGREES)) <= 2;
+    }
+
+    public void setTarget(Pose2D newTarget) {
+        odo.bulkUpdate();
+        pidfForward.reset();
+        pidfHorizontal.reset();
+        pidfRotate.reset();
+        currentPos = getPosition();
+        posTarget = addPos(newTarget, posTarget);
+        currentState = ChassisState.Moving;
     }
 
     public double orient(double targetAngle) {
