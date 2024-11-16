@@ -24,13 +24,16 @@ public class Chassis {
     private static final int DEGREES_TO_BASKET = 225;
     private Pose2D currentPos = new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 0);
     private Pose2D posTarget = new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 0);
+    private double scaleSpeed = 1;
     private double maxSpeed = 1;
+    private double allowedXYError = 0.5;
+    private boolean rotateOnly = false;
 
     private ChassisState currentState = ChassisState.Stop;
 
     private PIDFController pidfForward = new PIDFController(0.2, 0, 0, 0, 0);
     private PIDFController pidfHorizontal = new PIDFController(0.2, 0, 0, 0, 0);
-    private PIDFController pidfRotate = new PIDFController(0.07, 0, 0, 0, 0);
+    private PIDFController pidfRotate = new PIDFController(0.05, 0, 0, 0, 0);
 
     public enum MotorTesting {
         lf,
@@ -73,11 +76,19 @@ public class Chassis {
     }
     
     public void mecanumDrive(double forward, double strafe, double rotate) {
-        // math to move and turn
-        leftFront.setPower((forward + strafe - rotate) * maxSpeed);
-        rightFront.setPower((forward - strafe + rotate) * maxSpeed);
-        leftBack.setPower((forward - strafe - rotate) * maxSpeed);
-        rightBack.setPower((forward + strafe + rotate) * maxSpeed);
+        double lfPower = (forward + strafe - rotate) * scaleSpeed;
+        double rfPower = (forward - strafe + rotate) * scaleSpeed;
+        double lbPower = (forward - strafe - rotate) * scaleSpeed;
+        double rbPower = (forward + strafe + rotate) * scaleSpeed;
+        double fastMotor = Math.max(Math.abs(lfPower),
+                            Math.max(Math.abs(rfPower),
+                            Math.max(Math.abs(lbPower),
+                            Math.abs(rbPower))));
+        double scaleFactor = Math.min(maxSpeed / fastMotor, 1);
+        leftFront.setPower(lfPower * scaleFactor);
+        rightFront.setPower(rfPower * scaleFactor);
+        leftBack.setPower(lbPower * scaleFactor);
+        rightBack.setPower(rbPower * scaleFactor);
 
     }
 
@@ -109,7 +120,9 @@ public class Chassis {
                     mecanumDriveFieldCentric(0, 0, 0);
                     return;
                 }
-                moveUpdate();
+                if (currentState != ChassisState.Stop) {
+                    moveUpdate();
+                }
                 return;
         }
         telemetry.addData("Chassis state", currentState);
@@ -118,12 +131,14 @@ public class Chassis {
     public void moveUpdate() {
         odo.bulkUpdate();
         currentPos = getPosition();
-        double forwardCorrect = pidfForward.updateClamped(posTarget.getY(DistanceUnit.INCH), currentPos.getY(DistanceUnit.INCH), System.currentTimeMillis());
-        double horizontalCorrect = pidfHorizontal.updateClamped(posTarget.getX(DistanceUnit.INCH), currentPos.getX(DistanceUnit.INCH), System.currentTimeMillis());
+        double forwardCorrect = 0;
+        double horizontalCorrect = 0;
+        if (!rotateOnly) {
+            forwardCorrect = pidfForward.updateClamped(posTarget.getY(DistanceUnit.INCH), currentPos.getY(DistanceUnit.INCH), System.currentTimeMillis());
+            horizontalCorrect = pidfHorizontal.updateClamped(posTarget.getX(DistanceUnit.INCH), currentPos.getX(DistanceUnit.INCH), System.currentTimeMillis());
+        }
         double rotateCorrect = pidfRotate.updateClamped(posTarget.getHeading(AngleUnit.DEGREES), currentPos.getHeading(AngleUnit.DEGREES), System.currentTimeMillis());
-//        if (doMove) {
         mecanumDriveFieldCentric(forwardCorrect, horizontalCorrect, rotateCorrect);
-//        }
         String data2 = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", posTarget.getX(DistanceUnit.INCH), posTarget.getY(DistanceUnit.INCH), posTarget.getHeading(AngleUnit.DEGREES));
         telemetry.addData("Position target", data2);
         String data3 = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", horizontalCorrect, forwardCorrect, rotateCorrect);
@@ -132,14 +147,22 @@ public class Chassis {
         updateOdo();
     }
 
+    public void scaleMaxSpeed(double maxSpeed) {
+        scaleSpeed = maxSpeed;
+    }
+
     public void setMaxSpeed(double maxSpeed) {
         this.maxSpeed = maxSpeed;
     }
 
     public boolean atTarget() {
-        return Math.abs(posTarget.getX(DistanceUnit.INCH) - currentPos.getX(DistanceUnit.INCH)) <= 0.5 &&
-                Math.abs(posTarget.getY(DistanceUnit.INCH) - currentPos.getY(DistanceUnit.INCH)) <= 0.5 &&
-                Math.abs(posTarget.getHeading(AngleUnit.DEGREES) - currentPos.getHeading(AngleUnit.DEGREES)) <= 2;
+        if (!rotateOnly) {
+            return Math.abs(posTarget.getX(DistanceUnit.INCH) - currentPos.getX(DistanceUnit.INCH)) <= allowedXYError &&
+                    Math.abs(posTarget.getY(DistanceUnit.INCH) - currentPos.getY(DistanceUnit.INCH)) <= allowedXYError &&
+                    Math.abs(posTarget.getHeading(AngleUnit.DEGREES) - currentPos.getHeading(AngleUnit.DEGREES)) <= 2;
+        } else {
+            return Math.abs(posTarget.getHeading(AngleUnit.DEGREES) - currentPos.getHeading(AngleUnit.DEGREES)) <= 2;
+        }
     }
 
     public void setTarget(Pose2D newTarget) {
@@ -150,6 +173,11 @@ public class Chassis {
         currentPos = getPosition();
         posTarget = addPos(newTarget, posTarget);
         currentState = ChassisState.Moving;
+        rotateOnly = newTarget.getX(DistanceUnit.INCH) == 0 && newTarget.getY(DistanceUnit.INCH) == 0;
+    }
+
+    public void setAllowedError(double error) {
+        allowedXYError = error;
     }
 
     public double orient(double targetAngle) {

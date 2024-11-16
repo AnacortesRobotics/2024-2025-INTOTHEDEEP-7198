@@ -164,7 +164,7 @@ public class Intake {
     }
 
     public boolean isWristDone() {
-        return ((System.currentTimeMillis() - lastWristTime) > Math.abs(lastWristPosition - wrist.getPosition()) * 1000)
+        return ((System.currentTimeMillis() - lastWristTime) > Math.abs(lastWristPosition - wrist.getPosition()) * 1500)
                 && wristState == WristState.CanMove;
     }
 

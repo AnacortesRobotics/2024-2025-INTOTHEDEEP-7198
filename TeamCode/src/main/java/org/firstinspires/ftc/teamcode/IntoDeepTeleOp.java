@@ -29,6 +29,7 @@ public class IntoDeepTeleOp extends OpMode {
     private boolean bumperMode = false;
     private double turnPower = 0;
     private Intake.BlockColor ledColor = Intake.BlockColor.Unknown;
+    private boolean isDpadDown = false;
 
     private Chassis.MotorTesting motorTesting = Chassis.MotorTesting.lf;
 
@@ -66,8 +67,8 @@ public class IntoDeepTeleOp extends OpMode {
         } else if (gamepad1.b) {
             driveMode = false;
         }
-        if (gamepad1.right_bumper) {
-            turnPower = driveChassis.orient(45);
+        if (gamepad1.left_bumper) {
+            turnPower = driveChassis.orient(-45);
         } else {
             turnPower = rotate;
             driveChassis.resetOrient();
@@ -116,14 +117,25 @@ public class IntoDeepTeleOp extends OpMode {
             blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLACK);
         }
 */
-        if (gamepad2.dpad_down) {
-            pickupMode = ArmMode.Pickup;
-        } else if (gamepad2.dpad_up) {
-            pickupMode = ArmMode.Score;
-        } else if (gamepad2.dpad_right) {
-            pickupMode = ArmMode.Lifted;
-        } else if (gamepad2.dpad_left) {
-            pickupMode = ArmMode.Off;
+
+        if (gamepad2.dpad_left || gamepad2.dpad_right || gamepad2.dpad_up || gamepad2.dpad_down) {
+            if (!isDpadDown) {
+                if (gamepad2.dpad_down) {
+                    pickupMode = ArmMode.Pickup;
+                    deepArm.setArmTarget(pickupMode);
+                } else if (gamepad2.dpad_up) {
+                    pickupMode = ArmMode.Score;
+                    deepArm.setArmTarget(pickupMode);
+                } else if (gamepad2.dpad_right) {
+                    pickupMode = ArmMode.Lifted;
+                    deepArm.setArmTarget(pickupMode);
+                } else if (gamepad2.dpad_left) {
+                    pickupMode = ArmMode.Off;
+                }
+                isDpadDown = true;
+            }
+        } else {
+            isDpadDown = false;
         }
 
         if (gamepad2.right_bumper) {
@@ -160,10 +172,15 @@ public class IntoDeepTeleOp extends OpMode {
 
         intake.wristControl(wristMode);
 
-        deepArm.setArmState(-gamepad2.left_stick_y, -gamepad2.right_stick_y, pickupMode);
-
+        if (pickupMode == ArmMode.Off) {
+            deepArm.setArmState(-gamepad2.left_stick_y, -gamepad2.right_stick_y, pickupMode);
+        } else {
+            deepArm.update();
+        }
         telemetry.addData("Left stick y", gamepad2.left_stick_y);
         telemetry.addData("Right stick y", gamepad2.right_stick_y);
+
+        driveChassis.scaleMaxSpeed(1 - gamepad1.right_trigger * 0.7);
 
         finishedLoops += 1;
         telemetry.addData("Loop rate", loopRate);

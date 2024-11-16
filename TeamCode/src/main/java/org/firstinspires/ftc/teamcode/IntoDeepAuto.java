@@ -18,6 +18,10 @@ public class IntoDeepAuto extends OpMode {
     public Intake intake;
 
     private AutoStates autoStates = AutoStates.Idle;
+    private int cyclesComplete = 1;
+    private long lastCallTime = 0;
+    private boolean didTimeout = false;
+    private boolean isRotated = false;
 
     public enum AutoStates {
         TestTurnRight,
@@ -30,11 +34,11 @@ public class IntoDeepAuto extends OpMode {
         WristReadyToDrop,
         ReadyToPickup,
         MoveToPickup,
-        LiftToScoreTwo,
-        WristInPositionTwo,
-        BlockReleasedTwo,
-        WristReadyToDropTwo
-
+        CycleTwo,
+        CycleThree,
+        Reset,
+        Stop,
+        EReset
     }
 
     @Override
@@ -50,7 +54,9 @@ public class IntoDeepAuto extends OpMode {
     @Override
     public void loop() {
         telemetry.addData("Is this working", true);
-        if(driveChassis.atTarget() && arm.isStopped() && intake.isIntakeDone() && intake.isWristDone()) {
+        didTimeout = System.currentTimeMillis() - lastCallTime > 3500;
+        if ((driveChassis.atTarget() && arm.isStopped() && intake.isIntakeDone() && intake.isWristDone()) || didTimeout || autoStates == AutoStates.EReset) {
+            lastCallTime = System.currentTimeMillis();
             switch (autoStates) {
                 case TestTurnLeft:
                     driveChassis.setMaxSpeed(.3);
@@ -64,16 +70,18 @@ public class IntoDeepAuto extends OpMode {
                     break;
                 case Idle:
                     arm.setArmTarget(ArmMode.Lifted);
-                    driveChassis.setMaxSpeed(.6);
-                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, -19, 11, AngleUnit.DEGREES, 0));
+                    driveChassis.setMaxSpeed(.8);
+                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, -16, 13, AngleUnit.DEGREES, 0));
                     autoStates = AutoStates.StartMoveNetZone;
                     intake.setWristTarget(Intake.WristMode.SubPick, 500);
                     break;
                 case StartMoveNetZone:
+                    driveChassis.setAllowedError(2);
                     driveChassis.setMaxSpeed(.4);
-                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, -45));
+                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, -44));
                     arm.setArmTarget(ArmMode.Score);
                     autoStates = AutoStates.LiftToScoreOne;
+                    isRotated = true;
                     break;
                 case LiftToScoreOne:
                     intake.setWristTarget(Intake.WristMode.Pickup, 200);
@@ -84,38 +92,77 @@ public class IntoDeepAuto extends OpMode {
                     autoStates = AutoStates.BlockReleased;
                     break;
                 case BlockReleased:
-                    intake.setWristTarget(Intake.WristMode.Pickup, 500);
-                    autoStates = AutoStates.WristReadyToDrop;
+                    intake.setWristTarget(Intake.WristMode.SubPick, 500);
+                    if (cyclesComplete == 3) {
+                        autoStates = AutoStates.EReset;
+                    } else {
+                        autoStates = AutoStates.WristReadyToDrop;
+                    }
                     break;
                 case WristReadyToDrop:
+                    intake.setWristTarget(Intake.WristMode.Pickup, 300);
                     arm.setArmTarget(ArmMode.Pickup);
                     driveChassis.setMaxSpeed(.4);
                     driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 45));
                     autoStates = AutoStates.ReadyToPickup;
+                    isRotated = false;
                     break;
                 case ReadyToPickup:
-                    driveChassis.setMaxSpeed(.3);
+                    driveChassis.setAllowedError(.5);
+                    driveChassis.setMaxSpeed(.7);
                     intake.servoControl(Intake.IntakeState.In);
-                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 4, 18, AngleUnit.DEGREES, 0));
+                    if (cyclesComplete == 1) {
+                        driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 3, 14, AngleUnit.DEGREES, 0));
+                    } else {
+                        driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, -8, 13, AngleUnit.DEGREES, 0));
+                    }
                     autoStates = AutoStates.MoveToPickup;
                     break;
                 case MoveToPickup:
-                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, -4, -18, AngleUnit.DEGREES, 0));
+                    if (didTimeout) {
+                        autoStates = AutoStates.Reset;
+                        break;
+                    }
+                    if (cyclesComplete == 1) {
+                        driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, -3, -11, AngleUnit.DEGREES, 0));
+                    } else {
+                        driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 8, -15, AngleUnit.DEGREES, 0));
+                    }
                     intake.setWristTarget(Intake.WristMode.SubPick, 300);
                     arm.setArmTarget(ArmMode.Lifted);
-                    autoStates = AutoStates.LiftToScoreTwo;
+                    if (cyclesComplete == 1 && !didTimeout) {
+                        autoStates = AutoStates.CycleTwo;
+                    } else if (cyclesComplete == 2 && !didTimeout) {
+                        autoStates = AutoStates.CycleThree;
+                    }
                     break;
-                case LiftToScoreTwo:
-                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, -45));
-                    arm.setArmTarget(ArmMode.Score);
-                    autoStates = AutoStates.WristInPositionTwo;
+                case CycleTwo:
+                    autoStates = AutoStates.StartMoveNetZone;
+                    cyclesComplete = 2;
                     break;
-                case WristInPositionTwo:
-                    intake.setWristTarget(Intake.WristMode.Pickup, 200);
-                    autoStates = AutoStates.BlockReleasedTwo;
+                case CycleThree:
+                    autoStates = AutoStates.StartMoveNetZone;
+                    cyclesComplete = 3;
                     break;
-                case BlockReleasedTwo:
+                case Reset:
+                    driveChassis.setMaxSpeed(.5);
+                    arm.setArmTarget(ArmMode.Lifted);
+                    intake.setWristTarget(Intake.WristMode.SubPick, 0);
+                    intake.setWristTarget(Intake.WristMode.Back, 1500);
+                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 45));
+                    autoStates = AutoStates.Stop;
                     break;
+                case EReset:
+                    driveChassis.setMaxSpeed(.5);
+                    arm.setArmTarget(ArmMode.Lifted);
+                    if (isRotated) {
+                        driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 45));
+                    }
+                    intake.setWristTarget(Intake.WristMode.Back, 0);
+                    autoStates = AutoStates.Stop;
+                    break;
+                case Stop:
+                    terminateOpModeNow();
             }
         }
         driveChassis.update();
@@ -140,4 +187,5 @@ public class IntoDeepAuto extends OpMode {
 //        arm.setArmState(0, 0, ArmMode.Lifted);
 //        intake.wristControl(Intake.WristState.Back, telemetry);
     }
+
 }

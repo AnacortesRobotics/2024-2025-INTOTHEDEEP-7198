@@ -25,7 +25,7 @@ public class DeepArm {
     private static final double TICKS_PER_REVOLUTION = 5281.1;
 
     private static final double STARTING_ANGLE = -50;
-    private static final double MAX_ANGLE = 90;
+    private static final double MAX_ANGLE = 100;
     private static final double ARM_BASE_HEIGHT = 15.5;
     private static final double ARM_BASE_LENGTH = 13.9375;
     // axle on ground out to arm resting point on the ground
@@ -182,7 +182,7 @@ public class DeepArm {
                 inchesTarget = 0;
                 break;
             case Score:
-                degreesTarget = 90;
+                degreesTarget = 98;
                 inchesTarget = 10;
                 break;
             case Off:
@@ -209,7 +209,7 @@ public class DeepArm {
         armBaseTicks = min(armBaseTicks, ARM_ROTATE_MAX);
 
         armBase.setTargetPosition(armBaseTicks);
-        armBase.setPower(0.6);
+        armBase.setPower(0.8);
         //lastRotateTime = System.currentTimeMillis();
     }
     public void rotateArmOffset(double speed) {
