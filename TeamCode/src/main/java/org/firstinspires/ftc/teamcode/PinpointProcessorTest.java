@@ -70,7 +70,7 @@ public class PinpointProcessorTest extends OpMode {
         telemetry.update();
 
         driveChassis = new Chassis();
-        driveChassis.init(hardwareMap, telemetry);
+        driveChassis.init(hardwareMap, telemetry, true);
     }
 
     boolean toggleTuning = false;

@@ -29,11 +29,14 @@ public class Chassis {
     private double allowedXYError = 0.5;
     private boolean rotateOnly = false;
 
-    private ChassisState currentState = ChassisState.Stop;
+    public static double ROBOT_LENGTH = 17.5;
+    public static double ROBOT_WIDTH = 17.75;
 
-    private PIDFController pidfForward = new PIDFController(0.2, 0, 0, 0, 0);
-    private PIDFController pidfHorizontal = new PIDFController(0.2, 0, 0, 0, 0);
-    private PIDFController pidfRotate = new PIDFController(0.05, 0, 0, 0, 0);
+    public ChassisState currentState = ChassisState.Stop;
+
+    public PIDFController pidfForward = new PIDFController(SecondaryAuto.YP, SecondaryAuto.YI, SecondaryAuto.YD, 0, 0);
+    public PIDFController pidfHorizontal = new PIDFController(SecondaryAuto.XP, SecondaryAuto.XI, SecondaryAuto.XD, 0, 0);
+    public PIDFController pidfRotate = new PIDFController(SecondaryAuto.RP, SecondaryAuto.RI, SecondaryAuto.RD, 0, 0);
 
     public enum MotorTesting {
         lf,
@@ -47,7 +50,7 @@ public class Chassis {
         Moving
     }
     
-    public void init(HardwareMap hMap, Telemetry telemetry) {
+    public void init(HardwareMap hMap, Telemetry telemetry, boolean resetPos) {
         //Initailizes motors
         leftFront = hMap.get(DcMotor.class, "leftFront");
         leftFront.setDirection(DcMotor.Direction.REVERSE);
@@ -66,8 +69,9 @@ public class Chassis {
         odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.FORWARD,
                 GoBildaPinpointDriver.EncoderDirection.FORWARD);
 
-        odo.resetPosAndIMU();
-
+        if (resetPos) {
+            odo.resetPosAndIMU();
+        }
         this.telemetry = telemetry;
 
         pidfForward.setOutputClamping(-1, 1);
@@ -89,7 +93,6 @@ public class Chassis {
         rightFront.setPower(rfPower * scaleFactor);
         leftBack.setPower(lbPower * scaleFactor);
         rightBack.setPower(rbPower * scaleFactor);
-
     }
 
     public void mecanumDriveFieldCentric(double vertical, double horizontal, double rotate) {
@@ -100,7 +103,7 @@ public class Chassis {
     }
 
     public void driveToPosition(Pose2D pos, LinearOpMode opMode, String name, double maxSpeed, boolean doMove) {
-        setTarget(pos);
+        setTarget(pos, false);
         while(!atTarget()) {
             moveUpdate();
             if (opMode.isStopRequested()) {
@@ -128,8 +131,13 @@ public class Chassis {
         telemetry.addData("Chassis state", currentState);
     }
 
+    public void abortMove() {
+        currentState = ChassisState.Stop;
+        mecanumDriveFieldCentric(0, 0, 0);
+    }
+
     public void moveUpdate() {
-        odo.bulkUpdate();
+        updateOdo();
         currentPos = getPosition();
         double forwardCorrect = 0;
         double horizontalCorrect = 0;
@@ -144,7 +152,7 @@ public class Chassis {
         String data3 = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", horizontalCorrect, forwardCorrect, rotateCorrect);
         telemetry.addData("Outputs to the motors", data3);
         //telemetry.addData("Name of loop", name);
-        updateOdo();
+
     }
 
     public void scaleMaxSpeed(double maxSpeed) {
@@ -165,15 +173,20 @@ public class Chassis {
         }
     }
 
-    public void setTarget(Pose2D newTarget) {
+    public void setTarget(Pose2D newTarget, boolean isAbsolute) {
         odo.bulkUpdate();
         pidfForward.reset();
         pidfHorizontal.reset();
         pidfRotate.reset();
         currentPos = getPosition();
-        posTarget = addPos(newTarget, posTarget);
+        posTarget = (isAbsolute) ? newTarget : addPos(newTarget, posTarget);
         currentState = ChassisState.Moving;
         rotateOnly = newTarget.getX(DistanceUnit.INCH) == 0 && newTarget.getY(DistanceUnit.INCH) == 0;
+    }
+
+    public void setPosition(Pose2D position) {
+        odo.setPosition(new Pose2D(DistanceUnit.INCH, position.getY(DistanceUnit.INCH), -position.getX(DistanceUnit.INCH), AngleUnit.DEGREES, position.getHeading(AngleUnit.DEGREES)));
+        posTarget = position;
     }
 
     public void setAllowedError(double error) {
@@ -222,7 +235,7 @@ public class Chassis {
     }
 
     public Pose2D getPosition() {
-        return new Pose2D(DistanceUnit.MM, odo.getPosY(), odo.getPosX(), AngleUnit.RADIANS, odo.getHeading());
+        return new Pose2D(DistanceUnit.MM, -odo.getPosY(), odo.getPosX(), AngleUnit.RADIANS, odo.getHeading());
     }
 }
 

@@ -1,6 +1,9 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.Intake.IntakeState;
 import org.firstinspires.ftc.teamcode.Intake.WristMode;
 import org.firstinspires.ftc.teamcode.DeepArm.ArmMode;
@@ -16,8 +19,7 @@ public class IntoDeepTeleOp extends OpMode {
     private double rotate;
     private RevBlinkinLedDriver blinkinLED;
 
-    private DeepArm deepArm;
-    private Intake intake;
+    private ArmManager armManager;
 
     private boolean pickup = false;
     private ArmMode pickupMode = ArmMode.Off;
@@ -37,13 +39,11 @@ public class IntoDeepTeleOp extends OpMode {
     @Override
     public void init() {
         driveChassis = new Chassis();
-        driveChassis.init(hardwareMap, telemetry);
+        driveChassis.init(hardwareMap, telemetry, true);
         blinkinLED = hardwareMap.get(RevBlinkinLedDriver.class, "blinkinLED");
+        armManager = new ArmManager();
+        armManager.init(hardwareMap, telemetry);
 
-        intake = new Intake();
-        intake.init(hardwareMap, telemetry);
-        deepArm = new DeepArm();
-        deepArm.init(hardwareMap, telemetry, null);
         blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.CONFETTI);
     }
 
@@ -73,42 +73,40 @@ public class IntoDeepTeleOp extends OpMode {
             turnPower = rotate;
             driveChassis.resetOrient();
         }
-        if (!driveMode) {
-            driveChassis.mecanumDriveFieldCentric(forward, strafe, turnPower);
-        } else {
-            driveChassis.mecanumDrive(forward, strafe, turnPower);
+        if (driveChassis.currentState == Chassis.ChassisState.Stop) {
+            if (!driveMode) {
+                driveChassis.mecanumDriveFieldCentric(forward, strafe, turnPower);
+            } else {
+                driveChassis.mecanumDrive(forward, strafe, turnPower);
+            }
         }
-
 
 //        if (gamepad2.right_trigger < 0.1) {
 //            intake.servoControl(IntakeState.In);
-        if (gamepad2.x) {
-            intake.servoControl(IntakeState.Stop);
-        } else if (gamepad2.b) {
-            intake.servoControl(IntakeState.Out);
+        if (gamepad2.b) {
+            armManager.setGrabberPosition(IntakeState.Open);
             blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLACK);
         } else if (gamepad2.a) {
-            intake.servoControl(IntakeState.In);
-        }
-        intake.update();
-
-        if (intake.getIntakeColor() != Intake.BlockColor.Unknown) {
-            ledColor = intake.getIntakeColor();
+            armManager.setGrabberPosition(IntakeState.Closed);
         }
 
-        if (intake.isLimitDown()) {
-            switch (ledColor) {
-                case Red:
-                    blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.RED);
-                    break;
-                case Blue:
-                    blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLUE);
-                    break;
-                case Yellow:
-                    blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.GOLD);
-                    break;
-            }
-        }
+//        if (intake.getIntakeColor() != Intake.BlockColor.Unknown) {
+//            ledColor = intake.getIntakeColor();
+//        }
+
+//        if (intake.isLimitDown()) {
+//            switch (ledColor) {
+//                case Red:
+//                    blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.RED);
+//                    break;
+//                case Blue:
+//                    blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLUE);
+//                    break;
+//                case Yellow:
+//                    blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.GOLD);
+//                    break;
+//            }
+//        }
 
 /*
         if (!deepArm.isArmLimitMagnetDown()) {
@@ -122,13 +120,13 @@ public class IntoDeepTeleOp extends OpMode {
             if (!isDpadDown) {
                 if (gamepad2.dpad_down) {
                     pickupMode = ArmMode.Pickup;
-                    deepArm.setArmTarget(pickupMode);
+                    armManager.setArmTarget(pickupMode, 0);
                 } else if (gamepad2.dpad_up) {
                     pickupMode = ArmMode.Score;
-                    deepArm.setArmTarget(pickupMode);
+                    armManager.setArmTarget(pickupMode, 0);
                 } else if (gamepad2.dpad_right) {
                     pickupMode = ArmMode.Lifted;
-                    deepArm.setArmTarget(pickupMode);
+                    armManager.setArmTarget(pickupMode, 0);
                 } else if (gamepad2.dpad_left) {
                     pickupMode = ArmMode.Off;
                 }
@@ -170,24 +168,29 @@ public class IntoDeepTeleOp extends OpMode {
             bumperMode = false;
         }
 
-        intake.wristControl(wristMode);
-
-        if (pickupMode == ArmMode.Off) {
-            deepArm.setArmState(-gamepad2.left_stick_y, -gamepad2.right_stick_y, pickupMode);
-        } else {
-            deepArm.update();
+        if (gamepad1.x) {
+            driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 21, 21, AngleUnit.DEGREES, -45), true);
         }
+        if (gamepad1.y) {
+            driveChassis.abortMove();
+        }
+
+        armManager.setWristTarget(wristMode ,0);
+
+
+        armManager.manualArmMove(-gamepad2.left_stick_y, -gamepad2.right_stick_y);
+
         telemetry.addData("Left stick y", gamepad2.left_stick_y);
         telemetry.addData("Right stick y", gamepad2.right_stick_y);
 
         driveChassis.scaleMaxSpeed(1 - gamepad1.right_trigger * 0.7);
 
+        armManager.update();
         finishedLoops += 1;
         telemetry.addData("Loop rate", loopRate);
         telemetry.addData("Wrist state", wristMode);
         telemetry.addData("Drive mode", driveMode);
-        intake.addTelemetry();
-        deepArm.addTelemetry(telemetry);
+        armManager.updateTelemetry();
         telemetry.update();
 
     }

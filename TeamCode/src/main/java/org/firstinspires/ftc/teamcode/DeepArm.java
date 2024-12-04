@@ -12,34 +12,39 @@ public class DeepArm {
     private DcMotorEx armExtend;
     private DigitalChannel armLimit;
     private DigitalChannel armLimitMagnet;
+    private AnalogInput absRotatePos;
 
-    private double armBaseDegrees = STARTING_ANGLE + 4;
+    private double armBaseDegrees = 0 + 4; // was starting angle
     private double armExtendInches = 0;
     private boolean pickupMode = false;
     private ArmMode armMode = ArmMode.Off;
     private double armBaseDegreesCurrent = armBaseDegrees;
     private long lastRotateTime = 0;
     private int count;
+    private int armBaseOffset = 0;
 
-    private static final double TICKS_PER_INCH = 123.3793 * 2.67;
-    private static final double TICKS_PER_REVOLUTION = 5281.1;
+    private static final double TICKS_PER_INCH = 545.77;
+    private static final double TICKS_PER_REVOLUTION = 384.5 * 28;
+    // one full 360 of the arm
 
-    private static final double STARTING_ANGLE = -50;
-    private static final double MAX_ANGLE = 100;
-    private static final double ARM_BASE_HEIGHT = 15.5;
-    private static final double ARM_BASE_LENGTH = 13.9375;
+    //private static final double STARTING_ANGLE = -50;
+    private static final double MAX_ANGLE = 90; //100
+    private static final double ARM_BASE_HEIGHT = 7.6875;
+    private static final double ARM_BASE_LENGTH = 13.75;     // not used
     // axle on ground out to arm resting point on the ground
-    private static final double ARM_FRONT_DISTANCE = 15.125;
+    private static final double ARM_FRONT_DISTANCE = 15.125;   // not used
 
-    private static final int ARM_LENGTH_MIN = 5;
-    private static final int ARM_LENGTH_MAX = (9 * (int)TICKS_PER_INCH);
-    private static final int ARM_ROTATE_MIN =  5 * (int)TICKS_PER_REVOLUTION / 360;
-    private static final int ARM_ROTATE_MAX = (int)((MAX_ANGLE - STARTING_ANGLE) * TICKS_PER_REVOLUTION / 360);
+    private static final int ARM_LENGTH_MIN = 10;
+    private static final int ARM_LENGTH_MAX = (17 * (int)TICKS_PER_INCH);
+    private static final int ARM_ROTATE_MIN =  -10 * (int)TICKS_PER_REVOLUTION / 360;
+    private static final int ARM_ROTATE_MAX = (int)((MAX_ANGLE) * TICKS_PER_REVOLUTION / 360);
 
     private static final double ARM_EXTEND_SPEED = 0.4 * 2.67;
     private static final double ARM_ROTATE_SPEED = 2.5;
     private static final int DEGREES_PER_SECOND = 45;
     private static final int ALLOWED_TICKS_OFFSET = 30;
+
+    private static final double POTENTIOMETER_OFFSET = 0;
 
     private Telemetry telemetry;
     private LinearOpMode opMode;
@@ -49,6 +54,8 @@ public class DeepArm {
     private ArmState armState = ArmState.Stop;
     private double degreesTarget = 0;
     private double inchesTarget = 0;
+    private long delayMS = 0;
+    private long lastArmMoveCall = 0;
 
     private boolean debugFlag = false;
 
@@ -80,74 +87,62 @@ public class DeepArm {
         armExtend.setDirection(DcMotorSimple.Direction.REVERSE);
         armLimit = hMap.get(DigitalChannel.class, "armLimit");
         armLimitMagnet = hMap.get(DigitalChannel.class, "armLimitMagnet");
+        absRotatePos = hMap.get(AnalogInput.class, "absRotatePos");
 
         armBase.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         armBase.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         armBase.setTargetPosition(0);
         armBase.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         armBase.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        armBase.setDirection(DcMotorSimple.Direction.REVERSE);
+//        armBase.setDirection(DcMotorSimple.Direction.REVERSE);
 
         armExtend.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         armExtend.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         armExtend.setTargetPosition(0);
         armExtend.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         armExtend.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        armExtend.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        armBase.setPIDFCoefficients(DcMotor.RunMode.RUN_TO_POSITION, new PIDFCoefficients(10, 0, 0 ,0));
-        armExtend.setPIDFCoefficients(DcMotor.RunMode.RUN_TO_POSITION, new PIDFCoefficients(10, 0, 0, 0));
+        armBase.setPIDFCoefficients(DcMotor.RunMode.RUN_TO_POSITION, new PIDFCoefficients(15, 0, 0 ,0));
+        armExtend.setPIDFCoefficients(DcMotor.RunMode.RUN_TO_POSITION, new PIDFCoefficients(5, 0, 0, 0));
+
+        armBaseOffset = 0; // abs pos to ticks
     }
 
-    public void setArmState(double rotateSpeed, double extendSpeed, ArmMode mode) {
-        while (true) {
-            if (mode != armMode) {
-                armModeTime = System.currentTimeMillis();
-            }
-            setArmTarget(mode);
-            telemetry.addData("Rotation input", rotateSpeed);
-            telemetry.addData("Extend inches input", extendSpeed);
-            switch (mode) {
-                case Off:
-                    rotateArmOffset(rotateSpeed);
-                    extendArmOffset(extendSpeed);
-                    break;
-                default:
-                    moveArm();
-            }
-            if (opMode == null || opMode.isStopRequested()) {
-                break;
-            }
-            if (isAtTarget() && !isRotateFar) {
-                break;
-            }
+    public void manualArmControl(double rotateSpeed, double extendSpeed) {
+        telemetry.addData("Rotation input", rotateSpeed);
+        telemetry.addData("Extend inches input", extendSpeed);
+        if (armState == ArmState.Stop) {
+            rotateArmOffset(rotateSpeed);
+            extendArmOffset(extendSpeed);
         }
-
     }
 
     public void update() {
         telemetry.addData("Arm state case", armState);
-        switch (armState) {
-            case Stop:
-                return;
-            case Retract:
-                retractArm();
-                if(isAtTarget()) {
-                    armState = ArmState.FarMove;
-                }
-                return;
-            case FarMove:
-                moveArmFar();
-                if (isAtTarget()) {
-                    armState = ArmState.NearMove;
-                }
-                return;
-            case NearMove:
-                moveArm();
-                if (isAtTarget()) {
-                    armState = ArmState.Stop;
-                }
+        if (System.currentTimeMillis() - lastArmMoveCall > delayMS) {
+            switch (armState) {
+                case Stop:
+                    return;
+                case Retract:
+                    retractArm();
+                    if (isAtTarget()) {
+                        armState = ArmState.FarMove;
+                    }
+                    return;
+                case FarMove:
+                    moveArmFar();
+                    if (isAtTarget()) {
+                        armState = ArmState.NearMove;
+                    }
+                    return;
+                case NearMove:
+                    moveArm();
+                    if (isAtTarget()) {
+                        armState = ArmState.Stop;
+                    }
+            }
         }
-
     }
 
     public void moveArm() {
@@ -163,7 +158,9 @@ public class DeepArm {
         extendArm(0);
     }
 
-    public void setArmTarget(ArmMode mode) {
+    public void setArmTarget(ArmMode mode, long delay) {
+        lastArmMoveCall = System.currentTimeMillis();
+        delayMS = delay;
         if (mode == ArmMode.Pickup && armMode == ArmMode.Lifted) {
             armState = ArmState.NearMove;
         } else if (mode == ArmMode.Lifted && armMode == ArmMode.Pickup) {
@@ -174,16 +171,16 @@ public class DeepArm {
         armMode = mode;
         switch (mode) {
             case Pickup:
-                degreesTarget = -28;
+                degreesTarget = -10;
                 inchesTarget = 2;
                 break;
             case Lifted:
-                degreesTarget = ARM_BASE_HEIGHT - 5;
+                degreesTarget = 0;
                 inchesTarget = 0;
                 break;
             case Score:
-                degreesTarget = 98;
-                inchesTarget = 10;
+                degreesTarget = 90; // 98
+                inchesTarget = 17;
                 break;
             case Off:
                 return;
@@ -203,11 +200,14 @@ public class DeepArm {
         armBaseDegreesCurrent = armBaseDegrees;
 //         }
         telemetry.addData("Arm base degrees current", armBaseDegreesCurrent);
-        int armBaseTicks = (int)(((armBaseDegreesCurrent - STARTING_ANGLE) * TICKS_PER_REVOLUTION) / 360);
+        int armBaseTicks = (int)((armBaseDegreesCurrent * TICKS_PER_REVOLUTION) / 360) - armBaseOffset;
         telemetry.addData("Arm base ticks", armBaseTicks);
-         armBaseTicks = max(armBaseTicks, ARM_ROTATE_MIN);
-        armBaseTicks = min(armBaseTicks, ARM_ROTATE_MAX);
-
+        armBaseTicks = max(armBaseTicks, ARM_ROTATE_MIN - armBaseOffset);
+        if (getRotatePosition() < 60 * (TICKS_PER_REVOLUTION / 360)) {
+            armBaseTicks = min(armBaseTicks, ARM_ROTATE_MAX / 3 - armBaseOffset);
+        } else {
+            armBaseTicks = min(armBaseTicks, ARM_ROTATE_MAX - armBaseOffset);
+        }
         armBase.setTargetPosition(armBaseTicks);
         armBase.setPower(0.8);
         //lastRotateTime = System.currentTimeMillis();
@@ -232,7 +232,7 @@ public class DeepArm {
     }
 
     public boolean isArmLimitDown() {
-        return armLimit.getState();
+        return !armLimit.getState();
         // returns true when not pressed
     }
     public boolean isArmLimitMagnetDown() {
@@ -254,7 +254,7 @@ public class DeepArm {
     public void addTelemetry(Telemetry telemetry) {
         count += 1;
         telemetry.addData("Arm rotation target", armBase.getTargetPosition());
-        telemetry.addData("Arm rotation actual", armBase.getCurrentPosition());
+        telemetry.addData("Arm rotation actual", getRotatePosition());
         telemetry.addData("Arm rotation degrees", armBaseDegrees);
         telemetry.addData("Arm extention target", armExtend.getTargetPosition());
         telemetry.addData("Arm extention actual", armExtend.getCurrentPosition());
@@ -269,9 +269,17 @@ public class DeepArm {
     }
 
     public boolean isAtTarget() {
-        double differenceRotate = Math.abs(armBase.getCurrentPosition() - armBase.getTargetPosition());
+        double differenceRotate = Math.abs(getRotatePosition() - armBase.getTargetPosition());
         double differenceExtend = Math.abs(armExtend.getCurrentPosition() - armExtend.getTargetPosition());
         return differenceRotate < ALLOWED_TICKS_OFFSET && differenceExtend < ALLOWED_TICKS_OFFSET;
+    }
+
+    public int absPosToTicks() {
+        return (int)((absRotatePos.getVoltage() / absRotatePos.getMaxVoltage() * 270.0 + POTENTIOMETER_OFFSET) * (TICKS_PER_REVOLUTION / 360.0));
+    }
+
+    public int getRotatePosition() {
+        return armBase.getCurrentPosition() + armBaseOffset;
     }
 
 }

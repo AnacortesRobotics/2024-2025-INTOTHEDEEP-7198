@@ -6,13 +6,13 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 public class Intake {
     //names the servos
-    private CRServo leftIn;
-    private CRServo rightIn;
+    private Servo leftIn;
+    private Servo rightIn;
     private DigitalChannel intakeLimit;
     private ColorSensor colorSensor;
     private Servo wrist;
 
-    private IntakeState currentState = IntakeState.Stop;
+    private IntakeState currentState = IntakeState.Back;
     private WristMode wristMode = WristMode.Back;
     private WristState wristState = WristState.CanMove;
 
@@ -20,7 +20,7 @@ public class Intake {
     private long lastWristTime = 0;
     private double lastWristPosition = 0;
     private Telemetry telemetry;
-    private double delayMs = 0;
+    private long delayMs = 0;
     private long lastWristTargetCall = 0;
 
     public enum WristMode {
@@ -36,9 +36,9 @@ public class Intake {
     }
 
     public enum IntakeState {
-        Stop,
-        In,
-        Out
+        Back,
+        Closed,
+        Open
     }
 
     public enum BlockColor {
@@ -50,8 +50,8 @@ public class Intake {
 
     public void init(HardwareMap hMap, Telemetry telemetry) {
         // Initailizes the servos
-        leftIn = hMap.get(CRServo.class, "leftIn");
-        rightIn = hMap.get(CRServo.class, "rightIn");
+        leftIn = hMap.get(Servo.class, "leftIn");
+        rightIn = hMap.get(Servo.class, "rightIn");
         intakeLimit = hMap.get(DigitalChannel.class, "intakeLimit");
         colorSensor = hMap.get(ColorSensor.class, "colorSensor");
         wrist = hMap.get(Servo.class, "wrist");
@@ -63,7 +63,7 @@ public class Intake {
 
     public void update() {
         if(isIntakeDone()) {
-            servoControl(IntakeState.Stop);
+            servoControl(IntakeState.Back);
         }
         if (wristState == WristState.Wait && System.currentTimeMillis() - lastWristTargetCall > delayMs) {
             wristControl(wristMode);
@@ -71,7 +71,7 @@ public class Intake {
         }
     }
 
-    public void setWristTarget(WristMode mode, double delay) {
+    public void setWristTarget(WristMode mode, long delay) {
         lastWristTargetCall = System.currentTimeMillis();
         delayMs = delay;
         wristMode = mode;
@@ -92,20 +92,16 @@ public class Intake {
     public void servoControl(IntakeState state) {
         currentState = state;
         switch (state) {
-            case Stop:
-                leftIn.setPower(0);
-                rightIn.setPower(0);
+            case Back:
+                leftIn.setPosition(0);
+                rightIn.setPosition(0);
+            case Closed:
+                leftIn.setPosition(1);
+                rightIn.setPosition(1);
                 break;
-            case In:
-                if (!isLimitDown()) {
-                // removed !,
-                    leftIn.setPower(-0.5);
-                    rightIn.setPower(0.5);
-                }
-                break;
-            case Out:
-                leftIn.setPower(0.5);
-                rightIn.setPower(-0.5);
+            case Open:
+                leftIn.setPosition(0.5);
+                rightIn.setPosition(0.5);
                 lastOutputTime = System.currentTimeMillis();
                 break;
         }
@@ -155,12 +151,7 @@ public class Intake {
     }
 
     public boolean isIntakeDone() {
-        if(currentState == IntakeState.In) {
-            return isLimitDown();
-        } else if (currentState == IntakeState.Out) {
-            return System.currentTimeMillis() - lastOutputTime > 500;
-        }
-        return true;
+        return System.currentTimeMillis() - lastOutputTime > 200;
     }
 
     public boolean isWristDone() {
