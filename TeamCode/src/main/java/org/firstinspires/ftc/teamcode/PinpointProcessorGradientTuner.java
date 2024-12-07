@@ -90,7 +90,7 @@ public class PinpointProcessorGradientTuner extends OpMode {
                 file.write("" + X_OFFSET + "\n" + Y_OFFSET);
             } catch (IOException ignored)
             {
-                // oops
+                telemetry.addLine("Read/Write Error");
             }
 //            odo.resetPosAndIMU(); //recalibrates the IMU and position
 //            odo.recalibrateIMU(); //recalibrates the IMU without resetting position
@@ -182,24 +182,22 @@ public class PinpointProcessorGradientTuner extends OpMode {
             bestY = Y_OFFSET;
         }
 
-        double tempXOffset = X_OFFSET;
-        double tempYOffset = Y_OFFSET;
-
-        // NOTE TO LOGAN
-        // I swapped = with +=; we were setting the offsets instead of adjusting them
-        // (Changed "X_OFFSET = ..." to "X_OFFSET += ...", etc)
+//        double tempXOffset = X_OFFSET;
+//        double tempYOffset = Y_OFFSET;
 
         // Learning rate * change in error / change in offset
         double offsetChange = (X_OFFSET - oldXOffset) == 0 ? 0.00001 : (X_OFFSET - oldXOffset);
+        oldXOffset = X_OFFSET;
         X_OFFSET += LEARNING_RATE * (Old_ErrorX-ErrorX) / offsetChange;
 
-        offsetChange = (Y_OFFSET - oldYOffset) == 0 ? 0.00001 : (X_OFFSET - oldYOffset);
+        offsetChange = (Y_OFFSET - oldYOffset) == 0 ? 0.00001 : (Y_OFFSET - oldYOffset);
+        oldYOffset = Y_OFFSET;
         Y_OFFSET += LEARNING_RATE * (Old_ErrorY-ErrorY) / offsetChange;
 
 //        telemetry.addData("")
 
-        oldXOffset = tempXOffset;
-        oldYOffset = tempYOffset;
+//        oldXOffset = tempXOffset;
+//        oldYOffset = tempYOffset;
 
         // Reset datas here :>
         X_in_off = odo.getPosX();
