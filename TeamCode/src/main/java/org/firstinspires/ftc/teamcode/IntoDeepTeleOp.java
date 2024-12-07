@@ -85,9 +85,11 @@ public class IntoDeepTeleOp extends OpMode {
 //            intake.servoControl(IntakeState.In);
         if (gamepad2.b) {
             armManager.setGrabberPosition(IntakeState.Open);
-            blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLACK);
+            //blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLACK);
         } else if (gamepad2.a) {
             armManager.setGrabberPosition(IntakeState.Closed);
+        } else if (gamepad2.y) {
+            armManager.setGrabberPosition(IntakeState.Back);
         }
 
 //        if (intake.getIntakeColor() != Intake.BlockColor.Unknown) {

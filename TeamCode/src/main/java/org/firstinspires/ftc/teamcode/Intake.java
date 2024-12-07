@@ -8,7 +8,7 @@ public class Intake {
     //names the servos
     private Servo leftIn;
     private Servo rightIn;
-    private DigitalChannel intakeLimit;
+    //private DigitalChannel intakeLimit;
     private ColorSensor colorSensor;
     private Servo wrist;
 
@@ -52,7 +52,7 @@ public class Intake {
         // Initailizes the servos
         leftIn = hMap.get(Servo.class, "leftIn");
         rightIn = hMap.get(Servo.class, "rightIn");
-        intakeLimit = hMap.get(DigitalChannel.class, "intakeLimit");
+        //intakeLimit = hMap.get(DigitalChannel.class, "intakeLimit");
         colorSensor = hMap.get(ColorSensor.class, "colorSensor");
         wrist = hMap.get(Servo.class, "wrist");
 
@@ -62,9 +62,6 @@ public class Intake {
     }
 
     public void update() {
-        if(isIntakeDone()) {
-            servoControl(IntakeState.Back);
-        }
         if (wristState == WristState.Wait && System.currentTimeMillis() - lastWristTargetCall > delayMs) {
             wristControl(wristMode);
             wristState = WristState.CanMove;
@@ -79,7 +76,7 @@ public class Intake {
     }
 
     public void addTelemetry() {
-        telemetry.addData("Is button pressed? ", isLimitDown());
+        //telemetry.addData("Is button pressed? ", isLimitDown());
         telemetry.addData("red from color sensor: ", colorSensor.red());
         telemetry.addData("green from color sensor: ", colorSensor.green());
         telemetry.addData("blue from color sensor: ", colorSensor.blue());
@@ -93,19 +90,19 @@ public class Intake {
         currentState = state;
         switch (state) {
             case Back:
-                leftIn.setPosition(0);
-                rightIn.setPosition(0);
-            case Closed:
                 leftIn.setPosition(1);
                 rightIn.setPosition(1);
+                break;
+            case Closed:
+                leftIn.setPosition(0);
+                rightIn.setPosition(0);
                 break;
             case Open:
                 leftIn.setPosition(0.5);
                 rightIn.setPosition(0.5);
-                lastOutputTime = System.currentTimeMillis();
                 break;
         }
-
+        lastOutputTime = System.currentTimeMillis();
     }
 
     public BlockColor getIntakeColor() {
@@ -159,9 +156,9 @@ public class Intake {
                 && wristState == WristState.CanMove;
     }
 
-    public boolean isLimitDown() {
-        return !intakeLimit.getState();
-    }
+//    public boolean isLimitDown() {
+//        return !intakeLimit.getState();
+//    }
 
 
 }

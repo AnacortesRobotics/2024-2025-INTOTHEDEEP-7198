@@ -50,24 +50,25 @@ public class ArmManager {
 
     public void pickupUpdate() {
         boolean didTimeout = System.currentTimeMillis() - lastCallTime > 1500;
-        if (isAtTarget() || didTimeout)
+        if (isAtTarget() || didTimeout) {
             lastCallTime = System.currentTimeMillis();
             switch (pickup) {
-            case Lower:
-                setArmTarget(DeepArm.ArmMode.Pickup, 0);
-                setWristTarget(Intake.WristMode.SubPick, 0);
-                pickup = Pickup.Grab;
-                break;
-            case Grab:
-                intake.servoControl(Intake.IntakeState.Closed);
-                pickup = Pickup.Lift;
-                break;
-            case Lift:
-                setArmTarget(DeepArm.ArmMode.Lifted, 0);
-                pickup = Pickup.Done;
-                break;
-            case Done:
-                break;
+                case Lower:
+                    setArmTarget(DeepArm.ArmMode.Pickup, 0);
+                    setWristTarget(Intake.WristMode.SubPick, 0);
+                    pickup = Pickup.Grab;
+                    break;
+                case Grab:
+                    intake.servoControl(Intake.IntakeState.Closed);
+                    pickup = Pickup.Lift;
+                    break;
+                case Lift:
+                    setArmTarget(DeepArm.ArmMode.Lifted, 0);
+                    pickup = Pickup.Done;
+                    break;
+                case Done:
+                    break;
+            }
         }
     }
 
@@ -87,7 +88,7 @@ public class ArmManager {
         deepArm.addTelemetry(telemetry);
         intake.addTelemetry();
         telemetry.addData("Arm at target", deepArm.isStopped());
-        telemetry.addData("Intake at target", intake.isIntakeDone());
+        //telemetry.addData("Intake at target", intake.isIntakeDone());
         telemetry.addData("Wrist at target", intake.isWristDone());
     }
 

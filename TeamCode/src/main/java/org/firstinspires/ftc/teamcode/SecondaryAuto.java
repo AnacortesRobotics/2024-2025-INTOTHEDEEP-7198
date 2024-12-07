@@ -23,6 +23,7 @@ public class SecondaryAuto extends OpMode {
     private int currentCycle = 1;
 
     public enum AutoStates {
+        Test,
         Idle,
         GoToNet,
         Score,
@@ -36,10 +37,10 @@ public class SecondaryAuto extends OpMode {
 
     public static double XP = 0.25;
     public static double XI = 0;
-    public static double XD = 0.8;
+    public static double XD = 0.5;
     public static double YP = 0.25;
     public static double YI = 0;
-    public static double YD = 0.8;
+    public static double YD = 0.5;
     public static double RP = 0.05;
     public static double RI = 0;
     public static double RD = 0;
@@ -58,28 +59,34 @@ public class SecondaryAuto extends OpMode {
         armManager.init(hardwareMap, telemetry);
         driveChassis.setPosition(new Pose2D(DistanceUnit.INCH, 40 + Chassis.ROBOT_WIDTH / 2, Chassis.ROBOT_LENGTH / 2 - 2.5, AngleUnit.DEGREES, 0));
     }
-
+        //TODO: IF THERE IS AN ISSUE WITH THE PINPOINT DRIVER, RESET IT, RUN TESTER OPMODE
     @Override
     public void loop() {
-        didTimeout = System.currentTimeMillis() - lastCallTime > 3500;
+        didTimeout = System.currentTimeMillis() - lastCallTime > 10000;
         if ((driveChassis.atTarget() && armManager.isAtTarget()) || didTimeout) {
             lastCallTime = System.currentTimeMillis();
             switch(autoStates) {
+                case Test:
+                    driveChassis.setMaxSpeed(.2);
+                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, -45), true);
+                    break;
                 case Idle:
                     autoStates = AutoStates.GoToNet;
                     armManager.setGrabberPosition(Intake.IntakeState.Closed);
-                    armManager.setWristTarget(Intake.WristMode.SubPick, 0);
+                    armManager.setWristTarget(Intake.WristMode.Back, 0);
+                    armManager.setArmTarget(DeepArm.ArmMode.Lifted, 0);
+                    driveChassis.setMaxSpeed(.8);
                     break;
                 case GoToNet:
-                    driveChassis.setMaxSpeed(1);
+                    //driveChassis.setMaxSpeed(1);
                     driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 21, 21, AngleUnit.DEGREES, -45), true);
                     armManager.setArmTarget(DeepArm.ArmMode.Score, 0);
-                    armManager.setWristTarget(Intake.WristMode.Score, 2000);
+                    armManager.setWristTarget(Intake.WristMode.Score, 5000);
                     autoStates = AutoStates.Score;
                     break;
                 case Score:
                     armManager.setGrabberPosition(Intake.IntakeState.Open);
-                    armManager.setWristTarget(Intake.WristMode.SubPick, 200);
+                    armManager.setWristTarget(Intake.WristMode.Back, 200);
                     autoStates = AutoStates.PrepareToPick;
                     break;
                 case PrepareToPick:
@@ -93,12 +100,14 @@ public class SecondaryAuto extends OpMode {
                     }
                     break;
                 case GoToPickup1:
-                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 23, 40, AngleUnit.DEGREES, 0), true);
+                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 23, 24, AngleUnit.DEGREES, 0), true);
+                    armManager.setWristTarget(Intake.WristMode.Back, 500);
                     currentCycle = 2;
                     autoStates = AutoStates.Pickup;
                     break;
                 case GoToPickup2:
-                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 20, 40, AngleUnit.DEGREES, 0), true);
+                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 16, 24, AngleUnit.DEGREES, 0), true);
+                    armManager.setWristTarget(Intake.WristMode.Back, 500);
                     currentCycle = 3;
                     autoStates = AutoStates.Pickup;
                     break;

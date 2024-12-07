@@ -39,9 +39,9 @@ public class TesterOpMode extends OpMode {
     public void loop() {
 
         driveChassis.updateOdo();
-
-        armManager.manualArmMove(-gamepad2.left_stick_y, -gamepad2.right_stick_y);
-        armManager.updateTelemetry();
+        driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, -45), true);
+//        armManager.manualArmMove(-gamepad2.left_stick_y, -gamepad2.right_stick_y);
+//        armManager.updateTelemetry();
 
     }
 }

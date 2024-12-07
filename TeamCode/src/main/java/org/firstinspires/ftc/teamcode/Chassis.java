@@ -147,12 +147,10 @@ public class Chassis {
         }
         double rotateCorrect = pidfRotate.updateClamped(posTarget.getHeading(AngleUnit.DEGREES), currentPos.getHeading(AngleUnit.DEGREES), System.currentTimeMillis());
         mecanumDriveFieldCentric(forwardCorrect, horizontalCorrect, rotateCorrect);
-        String data2 = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", posTarget.getX(DistanceUnit.INCH), posTarget.getY(DistanceUnit.INCH), posTarget.getHeading(AngleUnit.DEGREES));
-        telemetry.addData("Position target", data2);
         String data3 = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", horizontalCorrect, forwardCorrect, rotateCorrect);
         telemetry.addData("Outputs to the motors", data3);
         //telemetry.addData("Name of loop", name);
-
+        // X is going wrong way, y is flipping at -45 degrees
     }
 
     public void scaleMaxSpeed(double maxSpeed) {
@@ -186,6 +184,8 @@ public class Chassis {
 
     public void setPosition(Pose2D position) {
         odo.setPosition(new Pose2D(DistanceUnit.INCH, position.getY(DistanceUnit.INCH), -position.getX(DistanceUnit.INCH), AngleUnit.DEGREES, position.getHeading(AngleUnit.DEGREES)));
+        odo.bulkUpdate();
+        currentPos = getPosition();
         posTarget = position;
     }
 
@@ -209,8 +209,12 @@ public class Chassis {
     public void updateOdo()
     {
         odo.bulkUpdate();
-        String data = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", getPosition().getX(DistanceUnit.INCH), getPosition().getY(DistanceUnit.INCH), getPosition().getHeading(AngleUnit.DEGREES));
+        String data = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", currentPos.getX(DistanceUnit.INCH), currentPos.getY(DistanceUnit.INCH), currentPos.getHeading(AngleUnit.DEGREES));
         telemetry.addData("Position", data);
+        String data2 = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", odo.getPosition().getX(DistanceUnit.MM), odo.getPosition().getY(DistanceUnit.MM), odo.getPosition().getHeading(AngleUnit.DEGREES));
+        telemetry.addData("True Position (Raw odo values)", data2);
+        String data3 = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", posTarget.getX(DistanceUnit.INCH), posTarget.getY(DistanceUnit.INCH), posTarget.getHeading(AngleUnit.DEGREES));
+        telemetry.addData("Position target", data3);
     }
 
     public void resetOrient() {
