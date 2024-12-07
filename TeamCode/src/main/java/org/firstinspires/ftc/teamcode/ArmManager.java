@@ -44,8 +44,13 @@ public class ArmManager {
         intake.setWristTarget(wristMode, delay);
     }
 
-    public void setGrabberPosition(Intake.IntakeState intakeState) {
+    public void setGrabberPosition(Intake.IntakeState intakeState)
+    {
         intake.servoControl(intakeState);
+    }
+
+    public void setGrabberPosition(Intake.IntakeState intakeState,double s1, double s2) {
+        intake.servoControl(intakeState,s1,s2);
     }
 
     public void pickupUpdate() {

@@ -86,7 +86,12 @@ public class Intake {
         telemetry.addData("Intake direction", currentState);
     }
 
-    public void servoControl(IntakeState state) {
+    public void servoControl(IntakeState state)
+    {
+        servoControl(state,0,0);
+    }
+
+    public void servoControl(IntakeState state,double s1, double s2) {
         currentState = state;
         switch (state) {
             case Back:
