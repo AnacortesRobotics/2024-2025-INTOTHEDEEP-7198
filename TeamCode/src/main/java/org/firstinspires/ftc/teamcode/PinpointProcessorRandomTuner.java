@@ -66,7 +66,7 @@ public class PinpointProcessorRandomTuner extends OpMode {
         telemetry.update();
 
         driveChassis = new Chassis();
-        driveChassis.init(hardwareMap, telemetry);
+        driveChassis.init(hardwareMap, telemetry, false);
     }
 
     boolean toggleTuning = false;

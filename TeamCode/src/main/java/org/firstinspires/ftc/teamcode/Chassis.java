@@ -71,6 +71,12 @@ public class Chassis {
 
         if (resetPos) {
             odo.resetPosAndIMU();
+//            try {
+//                Thread.sleep(1000);
+//            } catch (InterruptedException e) {
+//                telemetry.addData("INITIALIZATION FAILED", true);
+//                telemetry.update();
+//            }
         }
         this.telemetry = telemetry;
 
@@ -165,9 +171,9 @@ public class Chassis {
         if (!rotateOnly) {
             return Math.abs(posTarget.getX(DistanceUnit.INCH) - currentPos.getX(DistanceUnit.INCH)) <= allowedXYError &&
                     Math.abs(posTarget.getY(DistanceUnit.INCH) - currentPos.getY(DistanceUnit.INCH)) <= allowedXYError &&
-                    Math.abs(posTarget.getHeading(AngleUnit.DEGREES) - currentPos.getHeading(AngleUnit.DEGREES)) <= 2;
+                    Math.abs(posTarget.getHeading(AngleUnit.DEGREES) - currentPos.getHeading(AngleUnit.DEGREES)) <= 1;
         } else {
-            return Math.abs(posTarget.getHeading(AngleUnit.DEGREES) - currentPos.getHeading(AngleUnit.DEGREES)) <= 2;
+            return Math.abs(posTarget.getHeading(AngleUnit.DEGREES) - currentPos.getHeading(AngleUnit.DEGREES)) <= 1;
         }
     }
 

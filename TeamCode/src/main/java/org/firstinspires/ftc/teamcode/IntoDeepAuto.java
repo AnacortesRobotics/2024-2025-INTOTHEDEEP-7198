@@ -76,7 +76,7 @@ public class IntoDeepAuto extends OpMode {
                     driveChassis.setMaxSpeed(.8);
                     driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, -16, 13, AngleUnit.DEGREES, 0), false);
                     autoStates = AutoStates.StartMoveNetZone;
-                    armManager.setWristTarget(Intake.WristMode.SubPick, 500);
+                    armManager.setWristTarget(Intake.WristMode.Pickup, 500);
                     break;
                 case StartMoveNetZone:
                     driveChassis.setAllowedError(2);
@@ -87,7 +87,7 @@ public class IntoDeepAuto extends OpMode {
                     isRotated = true;
                     break;
                 case LiftToScoreOne:
-                    armManager.setWristTarget(Intake.WristMode.Pickup, 200);
+                    armManager.setWristTarget(Intake.WristMode.Forward, 200);
                     autoStates = AutoStates.WristInPosition;
                     break;
                 case WristInPosition:
@@ -95,7 +95,7 @@ public class IntoDeepAuto extends OpMode {
                     autoStates = AutoStates.BlockReleased;
                     break;
                 case BlockReleased:
-                    armManager.setWristTarget(Intake.WristMode.SubPick, 500);
+                    armManager.setWristTarget(Intake.WristMode.Pickup, 500);
                     if (cyclesComplete == 3) {
                         autoStates = AutoStates.EReset;
                     } else {
@@ -103,7 +103,7 @@ public class IntoDeepAuto extends OpMode {
                     }
                     break;
                 case WristReadyToDrop:
-                    armManager.setWristTarget(Intake.WristMode.Pickup, 300);
+                    armManager.setWristTarget(Intake.WristMode.Forward, 300);
                     armManager.setArmTarget(ArmMode.Pickup, 0);
                     driveChassis.setMaxSpeed(.4);
                     driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 45), false);
@@ -141,7 +141,7 @@ public class IntoDeepAuto extends OpMode {
                     } else {
                         driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 11.5, -13.5, AngleUnit.DEGREES, 0), false);
                     }
-                    armManager.setWristTarget(Intake.WristMode.SubPick, 300);
+                    armManager.setWristTarget(Intake.WristMode.Pickup, 300);
                     armManager.setArmTarget(ArmMode.Lifted, 0);
                     if (cyclesComplete == 1 && !didTimeout) {
                         autoStates = AutoStates.CycleTwo;
@@ -160,7 +160,7 @@ public class IntoDeepAuto extends OpMode {
                 case Reset:
                     driveChassis.setMaxSpeed(.5);
                     armManager.setArmTarget(ArmMode.Lifted, 0);
-                    armManager.setWristTarget(Intake.WristMode.SubPick, 0);
+                    armManager.setWristTarget(Intake.WristMode.Pickup, 0);
                     armManager.setWristTarget(Intake.WristMode.Back, 1500);
                     driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 45), false);
                     autoStates = AutoStates.Stop;

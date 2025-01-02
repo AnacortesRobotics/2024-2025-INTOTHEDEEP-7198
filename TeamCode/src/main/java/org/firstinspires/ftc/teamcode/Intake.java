@@ -9,7 +9,7 @@ public class Intake {
     private Servo leftIn;
     private Servo rightIn;
     //private DigitalChannel intakeLimit;
-    private ColorSensor colorSensor;
+    //private ColorSensor colorSensor;
     private Servo wrist;
 
     private IntakeState currentState = IntakeState.Back;
@@ -26,8 +26,8 @@ public class Intake {
     public enum WristMode {
         Back,
         Score,
-        Pickup,
-        SubPick
+        Forward,
+        Pickup
     }
 
     public enum WristState {
@@ -53,12 +53,11 @@ public class Intake {
         leftIn = hMap.get(Servo.class, "leftIn");
         rightIn = hMap.get(Servo.class, "rightIn");
         //intakeLimit = hMap.get(DigitalChannel.class, "intakeLimit");
-        colorSensor = hMap.get(ColorSensor.class, "colorSensor");
         wrist = hMap.get(Servo.class, "wrist");
 
         this.telemetry = telemetry;
 
-        wrist.setPosition(0.9);
+        wrist.setPosition(0.1);
     }
 
     public void update() {
@@ -77,10 +76,10 @@ public class Intake {
 
     public void addTelemetry() {
         //telemetry.addData("Is button pressed? ", isLimitDown());
-        telemetry.addData("red from color sensor: ", colorSensor.red());
-        telemetry.addData("green from color sensor: ", colorSensor.green());
-        telemetry.addData("blue from color sensor: ", colorSensor.blue());
-        telemetry.addData("Color in intake: ", getIntakeColor());
+        //telemetry.addData("red from color sensor: ", colorSensor.red());
+        //telemetry.addData("green from color sensor: ", colorSensor.green());
+        //telemetry.addData("blue from color sensor: ", colorSensor.blue());
+        //telemetry.addData("Color in intake: ", getIntakeColor());
         telemetry.addData("Wrist position target", wrist.getPosition());
         telemetry.addData("Wrist state", wristMode);
         telemetry.addData("Intake direction", currentState);
@@ -105,21 +104,21 @@ public class Intake {
         lastOutputTime = System.currentTimeMillis();
     }
 
-    public BlockColor getIntakeColor() {
-        colorSensor.enableLed(true);
-        int r = colorSensor.red();
-        int g = colorSensor.green();
-        int b = colorSensor.blue();
-        if (((r > b && r > g) && r > 1000) && r < 12000) {
-            return BlockColor.Red;
-        } else if (((g > b && g > r) && g > 1000) && g < 12000) {
-            return BlockColor.Yellow;
-        } else if (((b > r && b > g) && b > 1000) && b < 12000) {
-            return BlockColor.Blue;
-        } else {
-            return BlockColor.Unknown;
-        }
-    }
+//    public BlockColor getIntakeColor() {
+//        colorSensor.enableLed(true);
+//        int r = colorSensor.red();
+//        int g = colorSensor.green();
+//        int b = colorSensor.blue();
+//        if (((r > b && r > g) && r > 1000) && r < 12000) {
+//            return BlockColor.Red;
+//        } else if (((g > b && g > r) && g > 1000) && g < 12000) {
+//            return BlockColor.Yellow;
+//        } else if (((b > r && b > g) && b > 1000) && b < 12000) {
+//            return BlockColor.Blue;
+//        } else {
+//            return BlockColor.Unknown;
+//        }
+//    }
 
     public void wristControl(WristMode mode) {
         boolean check = true;
@@ -136,11 +135,11 @@ public class Intake {
                 wrist.setPosition(.6);
                 telemetry.addData("is score working", check);
                 break;
-            case Pickup:
+            case Forward:
                 wrist.setPosition(.36);
                 telemetry.addData("is pickup working", check);
                 break;
-            case SubPick:
+            case Pickup:
                 wrist.setPosition(0);
                 telemetry.addData("is submersible pickup working", check);
         }

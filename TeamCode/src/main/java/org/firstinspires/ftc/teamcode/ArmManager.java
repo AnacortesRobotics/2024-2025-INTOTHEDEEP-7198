@@ -30,6 +30,10 @@ public class ArmManager {
 
     public void setArmTarget(DeepArm.ArmMode armMode, long delay) {
         deepArm.setArmTarget(armMode, delay);
+//        if (armMode == DeepArm.ArmMode.Score) {
+//            I would like it to automatically move the wrist to the correct spot here,
+//            for lifting and once it's at the top (Forward, move, score)
+//        }
     }
 
     public void update() {
@@ -55,7 +59,7 @@ public class ArmManager {
             switch (pickup) {
                 case Lower:
                     setArmTarget(DeepArm.ArmMode.Pickup, 0);
-                    setWristTarget(Intake.WristMode.SubPick, 0);
+                    setWristTarget(Intake.WristMode.Pickup, 0);
                     pickup = Pickup.Grab;
                     break;
                 case Grab:
@@ -64,12 +68,19 @@ public class ArmManager {
                     break;
                 case Lift:
                     setArmTarget(DeepArm.ArmMode.Lifted, 0);
+                    setWristTarget(Intake.WristMode.Forward, 200);
                     pickup = Pickup.Done;
                     break;
                 case Done:
                     break;
             }
         }
+    }
+
+    public void scoreAndReturn() {
+        setGrabberPosition(Intake.IntakeState.Open);
+        setWristTarget(Intake.WristMode.Forward, 300);
+        setArmTarget(DeepArm.ArmMode.Lifted, 500);
     }
 
     public void startPickup() {

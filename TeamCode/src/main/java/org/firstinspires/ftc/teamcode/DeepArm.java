@@ -9,11 +9,13 @@ import static java.lang.Math.*;
 public class DeepArm {
 
     private DcMotorEx armBase;
+//    private
     private DcMotorEx armExtend;
     private DigitalChannel armLimit;
-    //private DigitalChannel armLimitMagnet;
+    private DigitalChannel armLimitRotation;
     private AnalogInput absRotatePos;
 
+//    private double armStartingAngle = 25;
     private double armBaseDegrees = 0 + 4; // was starting angle
     private double armExtendInches = 0;
     private boolean pickupMode = false;
@@ -21,11 +23,12 @@ public class DeepArm {
     private double armBaseDegreesCurrent = armBaseDegrees;
     private long lastRotateTime = 0;
     private int count;
-    private int armBaseOffset = 0;
-    private boolean hasInitialized = false;
+    private int armBaseOffset = 0; //0
+    private boolean hasArmInitialized = false;
+    private boolean hasRotateInitialized = false;
 
     private static final double TICKS_PER_INCH = 279.43;
-    private static final double TICKS_PER_REVOLUTION = 384.5 * 28;
+    private static final double TICKS_PER_REVOLUTION = 145.1 * 28 * 3;
     // one full 360 of the arm
 
     // Correct the positions, especially picking up the 2 and 3 samples.
@@ -41,7 +44,7 @@ public class DeepArm {
 
     private static final int ARM_LENGTH_MIN = 10;
     private static final int ARM_LENGTH_MAX = (int)(17.8 * TICKS_PER_INCH);
-    private static final int ARM_ROTATE_MIN =  -15 * (int)TICKS_PER_REVOLUTION / 360;
+    private static final int ARM_ROTATE_MIN =  0 * (int)TICKS_PER_REVOLUTION / 360;
     private static final int ARM_ROTATE_MAX = (int)((MAX_ANGLE) * TICKS_PER_REVOLUTION / 360);
 
     private static final double ARM_EXTEND_SPEED = 0.8;
@@ -88,10 +91,11 @@ public class DeepArm {
         this.opMode = opMode;
 
         armBase = hMap.get(DcMotorEx.class, "armBase");
+
         armExtend = hMap.get(DcMotorEx.class, "armExtend");
 //        armExtend.setDirection(DcMotorSimple.Direction.REVERSE);
         armLimit = hMap.get(DigitalChannel.class, "armLimit");
-        //armLimitMagnet = hMap.get(DigitalChannel.class, "armLimitMagnet");
+        armLimitRotation = hMap.get(DigitalChannel.class, "armLimitRotation");
         absRotatePos = hMap.get(AnalogInput.class, "absRotatePos");
 
         armBase.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -124,18 +128,30 @@ public class DeepArm {
     }
 
     public void updateLimit() {
-        if (isArmLimitDown() && !hasInitialized) {
+        if (isArmLimitDown() && !hasArmInitialized) {
             armExtend.setPower(0);
             armExtend.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
             armExtend.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
             armExtend.setTargetPosition(10);
             armExtend.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            hasInitialized = true;
+            hasArmInitialized = true;
+        }
+    }
+
+    public void updateRotationLimit() {
+        if (isArmLimitRotateDown() && !hasRotateInitialized) {
+            armBase.setPower(0);
+            armBase.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            armBase.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            armBase.setTargetPosition(10);
+            armBase.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            hasRotateInitialized = true;
         }
     }
 
     public void update() {
         updateLimit();
+        updateRotationLimit();
         telemetry.addData("Arm state case", armState);
         if (System.currentTimeMillis() - lastArmMoveCall > delayMS) {
             switch (armState) {
@@ -188,8 +204,8 @@ public class DeepArm {
         armMode = mode;
         switch (mode) {
             case Pickup:
-                degreesTarget = -6;
-                inchesTarget = 3;
+                degreesTarget = -16;//-6
+                //inchesTarget = 3;   (Don't want to move the arm to a set length when attempting to pickup blocks)
                 break;
             case Lifted:
                 degreesTarget = 0;
@@ -205,6 +221,12 @@ public class DeepArm {
     }
 
     public void rotateArm(double degrees) {
+        if (!hasRotateInitialized) {
+            if (armBaseDegrees < degrees) {
+                armBase.setPower(0);
+                return;
+            }
+        }
         armBaseDegrees = degrees;
 //        if ((System.currentTimeMillis() - lastRotateTime) > 1000) {
 //            lastRotateTime = System.currentTimeMillis();
@@ -219,9 +241,10 @@ public class DeepArm {
         telemetry.addData("Arm base degrees current", armBaseDegreesCurrent);
         int armBaseTicks = (int)((armBaseDegreesCurrent * TICKS_PER_REVOLUTION) / 360) - armBaseOffset;
         telemetry.addData("Arm base ticks", armBaseTicks);
-        armBaseTicks = max(armBaseTicks, ARM_ROTATE_MIN - armBaseOffset);
-        armBaseTicks = min(armBaseTicks, ARM_ROTATE_MAX - armBaseOffset);
-
+        if (hasRotateInitialized) {
+            armBaseTicks = max(armBaseTicks, ARM_ROTATE_MIN - armBaseOffset);
+            armBaseTicks = min(armBaseTicks, ARM_ROTATE_MAX - armBaseOffset);
+        }
         armBase.setTargetPosition(armBaseTicks);
         armBase.setPower(1);
         //lastRotateTime = System.currentTimeMillis();
@@ -230,7 +253,7 @@ public class DeepArm {
         rotateArm(armBaseDegrees + speed * ARM_ROTATE_SPEED);
     }
     public void extendArm(double armLength) {
-        if (!hasInitialized) {
+        if (!hasArmInitialized) {
             if (armExtendInches < armLength) {
                 armExtend.setPower(0);
                 return;
@@ -238,7 +261,7 @@ public class DeepArm {
         }
         armExtendInches = armLength;
         int armExtendTicks = (int) (armLength * TICKS_PER_INCH);
-        if (hasInitialized) {
+        if (hasArmInitialized) {
             armExtendTicks = max(armExtendTicks, ARM_LENGTH_MIN);
             armExtendTicks = min(armExtendTicks, getRotatePosition() < 1800 ? ARM_LENGTH_MAX / 3 : ARM_LENGTH_MAX);
             armExtendInches = max(armExtendInches, ARM_LENGTH_MIN / TICKS_PER_INCH);
@@ -246,7 +269,7 @@ public class DeepArm {
         }
         telemetry.addData("Arm extend ticks", armExtendTicks);
         armExtend.setTargetPosition(armExtendTicks);
-        armExtend.setPower(!hasInitialized ? .5 : 1);
+        armExtend.setPower(!hasArmInitialized ? .5 : 1);
     }
     public void extendArmOffset(double speed) {
         extendArm(armExtendInches + speed * ARM_EXTEND_SPEED);
@@ -257,10 +280,10 @@ public class DeepArm {
         return !armLimit.getState();
         // returns true when not pressed            with ! returns true when pressed
     }
-//    public boolean isArmLimitMagnetDown() {
-//        return armLimitMagnet.getState();
-//        // returns true when not pressed
-//    }
+    public boolean isArmLimitRotateDown() {
+        return !armLimitRotation.getState();
+        // returns true when not pressed
+    }
 
     public void setArmPosition(double inchesFromFront, double inchesFromGround) {
         double inchesUpOffset = inchesFromGround - ARM_BASE_HEIGHT;
@@ -285,7 +308,7 @@ public class DeepArm {
         telemetry.addData("Arm mode", armMode);
         telemetry.addData("Did it reach (the gameshow)", debugFlag);
         telemetry.addData("Arm limit switch is pressed", isArmLimitDown());
-        telemetry.addData("Has it initialized", hasInitialized);
+        telemetry.addData("Has arm initialized", hasArmInitialized);
     }
 
     public boolean isStopped() {

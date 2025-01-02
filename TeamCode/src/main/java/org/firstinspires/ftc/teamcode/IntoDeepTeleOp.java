@@ -143,10 +143,10 @@ public class IntoDeepTeleOp extends OpMode {
                 if (wristMode == WristMode.Back) {
                     wristMode = WristMode.Score;
                 } else if (wristMode == WristMode.Score) {
+                    wristMode = WristMode.Forward;
+                } else if (wristMode == WristMode.Forward) {
                     wristMode = WristMode.Pickup;
                 } else if (wristMode == WristMode.Pickup) {
-                    wristMode = WristMode.SubPick;
-                } else if (wristMode == WristMode.SubPick) {
                     wristMode = WristMode.Back;
                 }
             }
@@ -155,10 +155,10 @@ public class IntoDeepTeleOp extends OpMode {
         if (gamepad2.left_bumper) {
             if (!bumperMode) {
                 if (wristMode == WristMode.Back) {
-                    wristMode = WristMode.SubPick;
-                } else if (wristMode == WristMode.SubPick) {
                     wristMode = WristMode.Pickup;
                 } else if (wristMode == WristMode.Pickup) {
+                    wristMode = WristMode.Forward;
+                } else if (wristMode == WristMode.Forward) {
                     wristMode = WristMode.Score;
                 } else if (wristMode == WristMode.Score) {
                     wristMode = WristMode.Back;
