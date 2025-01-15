@@ -29,7 +29,8 @@ public class TesterOpMode extends OpMode {
         odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_SWINGARM_POD);
         odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.FORWARD,
                 GoBildaPinpointDriver.EncoderDirection.REVERSED);
-        odo.setPosition(new Pose2D(DistanceUnit.INCH, Chassis.ROBOT_LENGTH / 2, Chassis.ROBOT_WIDTH / -2, AngleUnit.DEGREES, 0));
+        odo.setPosition(new Pose2D(DistanceUnit.INCH, Chassis.ROBOT_LENGTH / 2,
+                Chassis.ROBOT_WIDTH / -2, AngleUnit.DEGREES, 0));
 
     }
 // 38.5, 9.25
@@ -38,10 +39,14 @@ public class TesterOpMode extends OpMode {
     @Override
     public void loop() {
 
-        driveChassis.updateOdo();
-        driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, -45), true);
-//        armManager.manualArmMove(-gamepad2.left_stick_y, -gamepad2.right_stick_y);
-//        armManager.updateTelemetry();
+        if (gamepad2.left_bumper) {
+            armManager.setWristTarget(WristMode.Back, 0);
+        }
+
+        armManager.manualArmMove(-gamepad2.left_stick_y, -gamepad2.right_stick_y);
+        driveChassis.mecanumDrive(-gamepad1.left_stick_y, gamepad1.left_stick_x, -gamepad1.right_stick_x);
+        armManager.update();
+        armManager.updateTelemetry();
 
     }
 }

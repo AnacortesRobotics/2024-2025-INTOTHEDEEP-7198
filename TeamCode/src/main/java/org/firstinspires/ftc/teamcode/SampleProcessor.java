@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -22,11 +23,11 @@ import java.util.concurrent.atomic.AtomicReference;
 @Config
 public class SampleProcessor implements VisionProcessor, CameraStreamSource {
 
-    public static Scalar lowerBlue = new Scalar(102, 110, 80);
+    public static Scalar lowerBlue = new Scalar(102, 80, 100);
     public static Scalar upperBlue = new Scalar(160, 255, 255);
-    public static Scalar lowerRed = new Scalar(140, 120, 110);
-    public static Scalar upperRed = new Scalar(180, 255, 255);
-    public static Scalar lowerYellow = new Scalar(10, 50, 85);
+    public static Scalar lowerRed = new Scalar(0, 80, 115);
+    public static Scalar upperRed = new Scalar(10, 255, 255);
+    public static Scalar lowerYellow = new Scalar(10, 50, 150);
     public static Scalar upperYellow = new Scalar(50, 255, 255);
 
     public static int colorTracked = 0;
@@ -34,13 +35,13 @@ public class SampleProcessor implements VisionProcessor, CameraStreamSource {
     private Object sync = new Object();
     // Be aware of resolution if camera changes
     private Mat output = new Mat(1280, 720, CvType.CV_8UC3);
-    private static final Point CENTER_OF_SCREEN = new Point(620, 360);
+    private static final Point CENTER_OF_SCREEN = new Point(700, 220);
     public Point targetPoint = new Point();
     Paint paint = new Paint();
 
     //TODO: get the correct number here. (from the height, with the camera, be aware of distortion)
     // converts pixels to inches, so number of inches in a pixel, not number of pixels in an inch
-    private static final double PIXELS_TO_INCHES = 1;
+    private static final double PIXELS_TO_INCHES = 0.0105;
 
     private List<RotatedRect> rectList = new ArrayList<>();
     private List<Point> possibleTargets = new ArrayList<>();
@@ -48,6 +49,7 @@ public class SampleProcessor implements VisionProcessor, CameraStreamSource {
     public final AtomicReference<Bitmap> lastFrame =
             new AtomicReference<>(Bitmap.createBitmap(1, 1, Bitmap.Config.RGB_565));
 
+    @SuppressLint("ResourceAsColor")
     @Override
     public void init(int width, int height, CameraCalibration cameraCalibration) {
         lastFrame.set(Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565));
@@ -171,15 +173,15 @@ public class SampleProcessor implements VisionProcessor, CameraStreamSource {
 
     public double getTravelDistance(boolean horizontal) {
         if (horizontal) {
-            return (CENTER_OF_SCREEN.x - targetPoint.x) * PIXELS_TO_INCHES;
-        } else {
             return (CENTER_OF_SCREEN.y - targetPoint.y) * PIXELS_TO_INCHES;
+        } else {
+            return (CENTER_OF_SCREEN.x - targetPoint.x) * PIXELS_TO_INCHES;
         }
     }
 
     public boolean isOnTarget() {
-        return Math.abs(CENTER_OF_SCREEN.x - targetPoint.x) < 30 &&
-                Math.abs(CENTER_OF_SCREEN.y - targetPoint.y) < 30;
+        return Math.abs(CENTER_OF_SCREEN.x - targetPoint.x) < 150 &&
+                Math.abs(CENTER_OF_SCREEN.y - targetPoint.y) < 200;
     }
 
     public void addTelemetry(Telemetry telemetry) {

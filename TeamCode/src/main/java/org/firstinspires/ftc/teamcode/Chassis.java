@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.Servo;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
@@ -18,6 +19,8 @@ public class Chassis {
     private DcMotor rightFront;
     private DcMotor leftBack;
     private DcMotor rightBack;
+    //private DcMotor climber;
+    //private Servo climberServo;
     private GoBildaPinpointDriver odo;
     private Telemetry telemetry;
 
@@ -38,6 +41,9 @@ public class Chassis {
     public PIDFController pidfHorizontal = new PIDFController(SecondaryAuto.XP, SecondaryAuto.XI, SecondaryAuto.XD, 0, 0);
     public PIDFController pidfRotate = new PIDFController(SecondaryAuto.RP, SecondaryAuto.RI, SecondaryAuto.RD, 0, 0);
 
+    private LiftState liftState = LiftState.Stop;
+    private boolean isEStop = false;
+
     public enum MotorTesting {
         lf,
         lb,
@@ -48,6 +54,14 @@ public class Chassis {
     public enum ChassisState {
         Stop,
         Moving
+    }
+
+    public enum LiftState {
+        Prepared,
+        Securing,
+        Lifting,
+        Holding,
+        Stop
     }
     
     public void init(HardwareMap hMap, Telemetry telemetry, boolean resetPos) {
@@ -62,6 +76,13 @@ public class Chassis {
         leftBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+//        climber = hMap.get(DcMotor.class, "climber");
+//        climber.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+//        climber.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+//        climber.setTargetPosition(0);
+//        climber.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+//        climberServo = hMap.get(Servo.class, "climberServo");
 
         odo = hMap.get(GoBildaPinpointDriver.class,"odo");
         odo.setOffsets(205.4467970180284, 169.7597803360906);
@@ -86,19 +107,21 @@ public class Chassis {
     }
     
     public void mecanumDrive(double forward, double strafe, double rotate) {
-        double lfPower = (forward + strafe - rotate) * scaleSpeed;
-        double rfPower = (forward - strafe + rotate) * scaleSpeed;
-        double lbPower = (forward - strafe - rotate) * scaleSpeed;
-        double rbPower = (forward + strafe + rotate) * scaleSpeed;
-        double fastMotor = Math.max(Math.abs(lfPower),
-                            Math.max(Math.abs(rfPower),
+        if (!isEStop) {
+            double lfPower = (forward + strafe - rotate) * scaleSpeed;
+            double rfPower = (forward - strafe + rotate) * scaleSpeed;
+            double lbPower = (forward - strafe - rotate) * scaleSpeed;
+            double rbPower = (forward + strafe + rotate) * scaleSpeed;
+            double fastMotor = Math.max(Math.abs(lfPower),
+                    Math.max(Math.abs(rfPower),
                             Math.max(Math.abs(lbPower),
-                            Math.abs(rbPower))));
-        double scaleFactor = Math.min(maxSpeed / fastMotor, 1);
-        leftFront.setPower(lfPower * scaleFactor);
-        rightFront.setPower(rfPower * scaleFactor);
-        leftBack.setPower(lbPower * scaleFactor);
-        rightBack.setPower(rbPower * scaleFactor);
+                                    Math.abs(rbPower))));
+            double scaleFactor = Math.min(maxSpeed / fastMotor, 1);
+            leftFront.setPower(lfPower * scaleFactor);
+            rightFront.setPower(rfPower * scaleFactor);
+            leftBack.setPower(lbPower * scaleFactor);
+            rightBack.setPower(rbPower * scaleFactor);
+        }
     }
 
     public void mecanumDriveFieldCentric(double vertical, double horizontal, double rotate) {
@@ -178,14 +201,16 @@ public class Chassis {
     }
 
     public void setTarget(Pose2D newTarget, boolean isAbsolute) {
-        odo.bulkUpdate();
-        pidfForward.reset();
-        pidfHorizontal.reset();
-        pidfRotate.reset();
-        currentPos = getPosition();
-        posTarget = (isAbsolute) ? newTarget : addPos(newTarget, posTarget);
-        currentState = ChassisState.Moving;
-        rotateOnly = newTarget.getX(DistanceUnit.INCH) == 0 && newTarget.getY(DistanceUnit.INCH) == 0;
+        if (!isEStop) {
+            odo.bulkUpdate();
+            pidfForward.reset();
+            pidfHorizontal.reset();
+            pidfRotate.reset();
+            currentPos = getPosition();
+            posTarget = (isAbsolute) ? newTarget : addPos(newTarget, posTarget);
+            currentState = ChassisState.Moving;
+            rotateOnly = newTarget.getX(DistanceUnit.INCH) == 0 && newTarget.getY(DistanceUnit.INCH) == 0;
+        }
     }
 
     public void setPosition(Pose2D position) {
@@ -212,8 +237,7 @@ public class Chassis {
         return new Pose2D(DistanceUnit.INCH, posX, posY, AngleUnit.DEGREES, posH);
     }
 
-    public void updateOdo()
-    {
+    public void updateOdo() {
         odo.bulkUpdate();
         String data = String.format(Locale.US, "{X: %.3f, Y: %.3f, H: %.3f}", currentPos.getX(DistanceUnit.INCH), currentPos.getY(DistanceUnit.INCH), currentPos.getHeading(AngleUnit.DEGREES));
         telemetry.addData("Position", data);
@@ -226,7 +250,48 @@ public class Chassis {
     public void resetOrient() {
         pidfRotate.reset();
     }
+/*
+    public void updateClimb() {
+        switch (liftState) {
+            case Prepared:
+                break;
+            case Securing:
+                climberServo.setPosition(1);
+                liftState = LiftState.Lifting;
+                break;
+            case Lifting:
+                climber.setTargetPosition(50);
+                climber.setPower(1);
+                liftState = LiftState.Holding;
+                break;
+            case Holding:
+                break;
+            case Stop:
+                break;
+        }
+    }
 
+    public void prepareClimb() {
+        if (!isEStop) {
+            climberServo.setPosition(0);
+            liftState = LiftState.Prepared;
+        }
+    }
+
+    public void beginClimb() {
+        if (!isEStop) {
+            liftState = LiftState.Securing;
+        }
+    }
+
+    public void cancelClimb() {
+        liftState = LiftState.Stop;
+    }
+
+    public boolean isPrepared() {
+        return liftState == LiftState.Prepared;
+    }
+*/
     public void motorTest(double forward, double strafe, double rotate, MotorTesting test) {
         switch (test) {
             case lf:
@@ -247,5 +312,17 @@ public class Chassis {
     public Pose2D getPosition() {
         return new Pose2D(DistanceUnit.MM, -odo.getPosY(), odo.getPosX(), AngleUnit.RADIANS, odo.getHeading());
     }
+
+    public void lock() {
+        abortMove();
+        //cancelClimb();
+        isEStop = true;
+    }
+
+    public void unlock() {
+        abortMove();
+        isEStop = false;
+    }
+
 }
 

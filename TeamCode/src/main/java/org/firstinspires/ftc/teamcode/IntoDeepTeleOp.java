@@ -1,6 +1,8 @@
 package org.firstinspires.ftc.teamcode;
 
+import android.util.Size;
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
@@ -10,6 +12,7 @@ import org.firstinspires.ftc.teamcode.DeepArm.ArmMode;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import org.firstinspires.ftc.vision.VisionPortal;
 
 @TeleOp
 public class IntoDeepTeleOp extends OpMode {
@@ -17,9 +20,10 @@ public class IntoDeepTeleOp extends OpMode {
     private double forward;
     private double strafe;
     private double rotate;
-    private RevBlinkinLedDriver blinkinLED;
 
     private ArmManager armManager;
+//    SampleProcessor sampleProcessor;
+//    VisionPortal visionPortal;
 
     private boolean pickup = false;
     private ArmMode pickupMode = ArmMode.Off;
@@ -28,7 +32,9 @@ public class IntoDeepTeleOp extends OpMode {
     private long lastSecond = 0;
     private int loopRate = 0;
     private WristMode wristMode = WristMode.Back;
+    private IntakeState intakeState = IntakeState.Back;
     private boolean bumperMode = false;
+    private boolean triggerMode = false;
     private double turnPower = 0;
     private Intake.BlockColor ledColor = Intake.BlockColor.Unknown;
     private boolean isDpadDown = false;
@@ -40,11 +46,17 @@ public class IntoDeepTeleOp extends OpMode {
     public void init() {
         driveChassis = new Chassis();
         driveChassis.init(hardwareMap, telemetry, true);
-        blinkinLED = hardwareMap.get(RevBlinkinLedDriver.class, "blinkinLED");
         armManager = new ArmManager();
         armManager.init(hardwareMap, telemetry);
-
-        blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.CONFETTI);
+//        sampleProcessor = new SampleProcessor();
+//
+//        visionPortal = new VisionPortal.Builder()
+//                .setCamera(hardwareMap.get(WebcamName.class, "sample Camera"))
+//                .setCameraResolution(new Size(1280, 720))
+//                .setStreamFormat(VisionPortal.StreamFormat.MJPEG)
+//                .enableLiveView(true)
+//                .addProcessor(sampleProcessor)
+//                .build();
     }
 
     @Override
@@ -62,35 +74,30 @@ public class IntoDeepTeleOp extends OpMode {
         strafe = gamepad1.left_stick_x;
         rotate = -gamepad1.right_stick_x;
 
-        if (gamepad1.a) {
-            driveMode = true;
-        } else if (gamepad1.b) {
-            driveMode = false;
-        }
-        if (gamepad1.left_bumper) {
-            turnPower = driveChassis.orient(-45);
-        } else {
-            turnPower = rotate;
-            driveChassis.resetOrient();
-        }
+        turnPower = rotate;
+
         if (driveChassis.currentState == Chassis.ChassisState.Stop) {
-            if (!driveMode) {
-                driveChassis.mecanumDriveFieldCentric(forward, strafe, turnPower);
-            } else {
-                driveChassis.mecanumDrive(forward, strafe, turnPower);
-            }
+            driveChassis.mecanumDriveFieldCentric(forward, strafe, turnPower);
         }
 
 //        if (gamepad2.right_trigger < 0.1) {
 //            intake.servoControl(IntakeState.In);
-        if (gamepad2.b) {
-            armManager.setGrabberPosition(IntakeState.Open);
-            //blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLACK);
-        } else if (gamepad2.a) {
-            armManager.setGrabberPosition(IntakeState.Closed);
-        } else if (gamepad2.y) {
-            armManager.setGrabberPosition(IntakeState.Back);
-        }
+//        if (gamepad2.b) {
+//            armManager.setGrabberPosition(IntakeState.Open);
+//            //blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLACK);
+//        } else if (gamepad2.a) {
+//            armManager.setGrabberPosition(IntakeState.Closed);
+//        } else if (gamepad2.y) {
+//            armManager.setGrabberPosition(IntakeState.Back);
+//        }
+
+//        if (gamepad1.a) {
+//            driveChassis.prepareClimb();
+//        } else if (gamepad1.b && driveChassis.isPrepared()) {
+//            driveChassis.beginClimb();
+//        } else if (gamepad1.x) {
+//            driveChassis.cancelClimb();
+//        }
 
 //        if (intake.getIntakeColor() != Intake.BlockColor.Unknown) {
 //            ledColor = intake.getIntakeColor();
@@ -118,74 +125,108 @@ public class IntoDeepTeleOp extends OpMode {
         }
 */
 
-        if (gamepad2.dpad_left || gamepad2.dpad_right || gamepad2.dpad_up || gamepad2.dpad_down) {
-            if (!isDpadDown) {
-                if (gamepad2.dpad_down) {
-                    pickupMode = ArmMode.Pickup;
-                    armManager.setArmTarget(pickupMode, 0);
-                } else if (gamepad2.dpad_up) {
-                    pickupMode = ArmMode.Score;
-                    armManager.setArmTarget(pickupMode, 0);
-                } else if (gamepad2.dpad_right) {
-                    pickupMode = ArmMode.Lifted;
-                    armManager.setArmTarget(pickupMode, 0);
-                } else if (gamepad2.dpad_left) {
-                    pickupMode = ArmMode.Off;
-                }
-                isDpadDown = true;
+        if (armManager.isPickupDone()) {
+            if (gamepad2.dpad_up) {
+                armManager.setArmTarget(ArmMode.Score, 0);
+                armManager.setWristTarget(WristMode.Forward, 2000);
+            } else if (gamepad2.dpad_right) {
+                armManager.setArmTarget(ArmMode.Lifted, 0);
+            } else if (gamepad2.dpad_down) {
+                armManager.lineUpToGrab();
             }
-        } else {
-            isDpadDown = false;
         }
 
-        if (gamepad2.right_bumper) {
-            if (!bumperMode) {
-                if (wristMode == WristMode.Back) {
-                    wristMode = WristMode.Score;
-                } else if (wristMode == WristMode.Score) {
-                    wristMode = WristMode.Forward;
-                } else if (wristMode == WristMode.Forward) {
-                    wristMode = WristMode.Pickup;
-                } else if (wristMode == WristMode.Pickup) {
-                    wristMode = WristMode.Back;
-                }
-            }
-            bumperMode = true;
+        if (gamepad2.b) {
+            armManager.setWristTarget(WristMode.Score, 0);
         }
-        if (gamepad2.left_bumper) {
-            if (!bumperMode) {
-                if (wristMode == WristMode.Back) {
-                    wristMode = WristMode.Pickup;
-                } else if (wristMode == WristMode.Pickup) {
-                    wristMode = WristMode.Forward;
-                } else if (wristMode == WristMode.Forward) {
-                    wristMode = WristMode.Score;
-                } else if (wristMode == WristMode.Score) {
-                    wristMode = WristMode.Back;
-                }
-            }
-            bumperMode = true;
+        if (gamepad2.x) {
+            armManager.scoreAndReturn();
         }
-        if (!gamepad2.right_bumper) {
-            bumperMode = false;
+        if (gamepad2.a) {
+            armManager.startPickFromLineup();
         }
 
-        if (gamepad1.x) {
+        if (gamepad1.right_bumper) {
             driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 21, 21, AngleUnit.DEGREES, -45), true);
         }
-        if (gamepad1.y) {
+        if (gamepad1.left_bumper) {
             driveChassis.abortMove();
         }
 
-        armManager.setWristTarget(wristMode ,0);
+        if (gamepad1.back || gamepad2.back) {
+            driveChassis.lock();
+            armManager.lock();
+        }
+        if (gamepad1.start || gamepad2.start) {
+            driveChassis.unlock();
+            armManager.unlock();
+        }
 
+        if (gamepad2.left_bumper) {
+            if (!bumperMode) {
+                if (wristMode == WristMode.Pickup) {
+                    if (armManager.getRotationTicks() > 1800) {
+                        armManager.setWristTarget(WristMode.Back, 0);
+                        wristMode = WristMode.Back;
+                    }
+                } else if (wristMode == WristMode.Back) {
+                    if (armManager.getRotationTicks() > 1800) {
+                        armManager.setWristTarget(WristMode.Score, 0);
+                        wristMode = WristMode.Score;
+                    }
+                } else if (wristMode == WristMode.Score) {
+                    if (armManager.getRotationTicks() > 1800) {
+                        armManager.setWristTarget(WristMode.Forward, 0);
+                        wristMode = WristMode.Forward;
+                    }
+                } else if (wristMode == WristMode.Forward) {
+                    armManager.setWristTarget(WristMode.Pickup, 0);
+                    wristMode = WristMode.Pickup;
+                }
+                bumperMode = true;
+            }
+        } else {
+            bumperMode = false;
+        }
+        if (gamepad2.left_trigger > .3) {
+            if (!triggerMode) {
+                if (intakeState == IntakeState.Closed) {
+                    armManager.setGrabberPosition(IntakeState.Open);
+                    intakeState = IntakeState.Open;
+                } else {
+                    armManager.setGrabberPosition(IntakeState.Closed);
+                    intakeState = IntakeState.Closed;
+                }
+                triggerMode = true;
+            }
+        } else {
+            triggerMode = false;
+        }
 
-        armManager.manualArmMove(-gamepad2.left_stick_y, -gamepad2.right_stick_y);
+//        if (gamepad2.right_bumper) {
+//            visionPortal.resumeStreaming();
+//            if (sampleProcessor.isOnTarget()) {
+//                armManager.startPickup();
+//            } else {
+//                driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, sampleProcessor.getTravelDistance(true), 0, AngleUnit.DEGREES, 0), false);
+//                armManager.extendArmToPosition(sampleProcessor.getTravelDistance(false) + armManager.getExtentionInches());
+//            }
+//
+//        }
+//        if (!gamepad2.right_bumper) {
+//            visionPortal.stopStreaming();
+//        }
+
+            armManager.manualArmMove(-gamepad2.left_stick_y, -gamepad2.right_stick_y);
 
         telemetry.addData("Left stick y", gamepad2.left_stick_y);
         telemetry.addData("Right stick y", gamepad2.right_stick_y);
 
         driveChassis.scaleMaxSpeed(1 - gamepad1.right_trigger * 0.7);
+
+        if (armManager.getRotationTicks() < 1800) {
+            armManager.setWristTarget(WristMode.Pickup, 0);
+        }
 
         armManager.update();
         finishedLoops += 1;

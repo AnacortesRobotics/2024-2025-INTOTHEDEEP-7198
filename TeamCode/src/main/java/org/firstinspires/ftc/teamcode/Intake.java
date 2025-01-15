@@ -22,6 +22,8 @@ public class Intake {
     private Telemetry telemetry;
     private long delayMs = 0;
     private long lastWristTargetCall = 0;
+    private boolean isEStop = false;
+    private boolean debugFlag = false;
 
     public enum WristMode {
         Back,
@@ -38,7 +40,8 @@ public class Intake {
     public enum IntakeState {
         Back,
         Closed,
-        Open
+        Open,
+        LineUp
     }
 
     public enum BlockColor {
@@ -51,13 +54,12 @@ public class Intake {
     public void init(HardwareMap hMap, Telemetry telemetry) {
         // Initailizes the servos
         leftIn = hMap.get(Servo.class, "leftIn");
+        leftIn.setDirection(Servo.Direction.REVERSE);
         rightIn = hMap.get(Servo.class, "rightIn");
         //intakeLimit = hMap.get(DigitalChannel.class, "intakeLimit");
         wrist = hMap.get(Servo.class, "wrist");
 
         this.telemetry = telemetry;
-
-        wrist.setPosition(0.1);
     }
 
     public void update() {
@@ -68,10 +70,16 @@ public class Intake {
     }
 
     public void setWristTarget(WristMode mode, long delay) {
+        if (isEStop) {
+            return;
+        } else {
+            wrist.getController().pwmEnable();
+        }
         lastWristTargetCall = System.currentTimeMillis();
         delayMs = delay;
         wristMode = mode;
         wristState = WristState.Wait;
+        debugFlag = true;
     }
 
     public void addTelemetry() {
@@ -81,24 +89,37 @@ public class Intake {
         //telemetry.addData("blue from color sensor: ", colorSensor.blue());
         //telemetry.addData("Color in intake: ", getIntakeColor());
         telemetry.addData("Wrist position target", wrist.getPosition());
-        telemetry.addData("Wrist state", wristMode);
+        telemetry.addData("Wrist mode", wristMode);
+        telemetry.addData("Wrist state", wristState);
         telemetry.addData("Intake direction", currentState);
+        telemetry.addData("Is it stopped", isEStop);
+        telemetry.addData("Did it arrive (The other show)", debugFlag);
     }
 
     public void servoControl(IntakeState state) {
+        if (isEStop) {
+            return;
+        } else {
+            rightIn.getController().pwmEnable();
+            leftIn.getController().pwmEnable();
+        }
         currentState = state;
         switch (state) {
             case Back:
                 leftIn.setPosition(1);
-                rightIn.setPosition(1);
+                rightIn.setPosition(0);
                 break;
             case Closed:
                 leftIn.setPosition(0);
-                rightIn.setPosition(0);
+                rightIn.setPosition(1);
                 break;
             case Open:
                 leftIn.setPosition(0.5);
                 rightIn.setPosition(0.5);
+                break;
+            case LineUp:
+                rightIn.setPosition(1);
+                leftIn.setPosition(1);
                 break;
         }
         lastOutputTime = System.currentTimeMillis();
@@ -121,6 +142,11 @@ public class Intake {
 //    }
 
     public void wristControl(WristMode mode) {
+        if (isEStop) {
+            return;
+        } else {
+            wrist.getController().pwmEnable();
+        }
         boolean check = true;
         telemetry.addData("Does it get here?", check);
         telemetry.addData("Whats the state being passed?", mode);
@@ -128,19 +154,19 @@ public class Intake {
         lastWristPosition = wrist.getPosition();
         switch (mode) {
             case Back:
-                wrist.setPosition(.9);
+                wrist.setPosition(0);
                 telemetry.addData("is back working", check);
                 break;
             case Score:
-                wrist.setPosition(.6);
+                wrist.setPosition(.35);
                 telemetry.addData("is score working", check);
                 break;
             case Forward:
-                wrist.setPosition(.36);
+                wrist.setPosition(.5);
                 telemetry.addData("is pickup working", check);
                 break;
             case Pickup:
-                wrist.setPosition(0);
+                wrist.setPosition(.9);
                 telemetry.addData("is submersible pickup working", check);
         }
         wristMode = mode;
@@ -155,9 +181,15 @@ public class Intake {
                 && wristState == WristState.CanMove;
     }
 
-//    public boolean isLimitDown() {
-//        return !intakeLimit.getState();
-//    }
+    public void lock() {
+        wrist.getController().pwmDisable();
+        rightIn.getController().pwmDisable();
+        leftIn.getController().pwmDisable();
+        isEStop = true;
+    }
 
+    public void unlock() {
+        isEStop = false;
+    }
 
 }

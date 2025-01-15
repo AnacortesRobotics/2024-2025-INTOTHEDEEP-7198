@@ -1,14 +1,18 @@
 package org.firstinspires.ftc.teamcode;
 
 
+import android.util.Size;
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+import org.firstinspires.ftc.vision.VisionPortal;
+import org.firstinspires.ftc.vision.VisionProcessor;
 
 @Autonomous
 @Config
@@ -16,6 +20,8 @@ public class SecondaryAuto extends OpMode {
 
     public Chassis driveChassis;
     public ArmManager armManager;
+//    public SampleProcessor sampleProcessor;
+//    public VisionPortal visionPortal;
 
     private long lastCallTime = 0;
     private boolean didTimeout = false;
@@ -58,40 +64,47 @@ public class SecondaryAuto extends OpMode {
         armManager = new ArmManager();
         armManager.init(hardwareMap, telemetry);
         driveChassis.setPosition(new Pose2D(DistanceUnit.INCH, 40 + Chassis.ROBOT_WIDTH / 2, Chassis.ROBOT_LENGTH / 2 - 2.5, AngleUnit.DEGREES, 0));
-
+//        sampleProcessor = new SampleProcessor();
+//
+//        visionPortal = new VisionPortal.Builder()
+//                .setCamera(hardwareMap.get(WebcamName.class, "sample Camera"))
+//                .setCameraResolution(new Size(1280, 720))
+//                .setStreamFormat(VisionPortal.StreamFormat.MJPEG)
+//                .enableLiveView(true)
+//                .addProcessor(sampleProcessor)
+//                .build();
     }
         //TODO: IF THERE IS AN ISSUE WITH THE PINPOINT DRIVER, RESET IT, RUN TESTER OPMODE
     @Override
     public void loop() {
         didTimeout = System.currentTimeMillis() - lastCallTime > 10000;
-        if ((driveChassis.atTarget() && armManager.isAtTarget()) || didTimeout) {
+        if (((driveChassis.atTarget() && armManager.isAtTarget()) && armManager.isArmDone()) || didTimeout) {
             lastCallTime = System.currentTimeMillis();
             switch(autoStates) {
                 case Test:
-                    driveChassis.setMaxSpeed(.2);
-                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, -45), true);
+                    terminateOpModeNow();
                     break;
                 case Idle:
                     autoStates = AutoStates.GoToNet;
                     armManager.setGrabberPosition(Intake.IntakeState.Closed);
-                    armManager.setWristTarget(Intake.WristMode.Back, 0);
-                    armManager.setArmTarget(DeepArm.ArmMode.Lifted, 0);
-                    driveChassis.setMaxSpeed(.8);
+                    armManager.setWristTarget(Intake.WristMode.Pickup, 0);
+                    while (!armManager.isRotateLimitDown()) {
+                        armManager.manualArmMove(-1, 0);
+                    }
+                    driveChassis.setMaxSpeed(.6);
                     break;
                 case GoToNet:
                     //driveChassis.setMaxSpeed(1);
-                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 21, 22, AngleUnit.DEGREES, -45), true);
+                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 20, 20, AngleUnit.DEGREES, -45), true);
                     armManager.setArmTarget(DeepArm.ArmMode.Score, 0);
-                    armManager.setWristTarget(Intake.WristMode.Score, 7000);
+                    armManager.setWristTarget(Intake.WristMode.Score, 5500);
                     autoStates = AutoStates.Score;
                     break;
                 case Score:
-                    armManager.setGrabberPosition(Intake.IntakeState.Open);
-                    armManager.setWristTarget(Intake.WristMode.Back, 200);
-                    autoStates = AutoStates.PrepareToPick;
+                    armManager.scoreAndReturn();
+                    autoStates = AutoStates.Stop;
                     break;
                 case PrepareToPick:
-                    armManager.setArmTarget(DeepArm.ArmMode.Pickup, 0);
                     if (currentCycle == 1) {
                         autoStates = AutoStates.GoToPickup1;
                     } else if (currentCycle == 2) {
@@ -101,24 +114,32 @@ public class SecondaryAuto extends OpMode {
                     }
                     break;
                 case GoToPickup1:
-                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 32, 24, AngleUnit.DEGREES, 0), true);
+                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 36, 27, AngleUnit.DEGREES, 0), true);
                     armManager.setWristTarget(Intake.WristMode.Back, 500);
                     currentCycle = 2;
                     autoStates = AutoStates.Pickup;
                     break;
                 case GoToPickup2:
-                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 21, 24, AngleUnit.DEGREES, 0), true);
+                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 23, 28, AngleUnit.DEGREES, 0), true);
                     armManager.setWristTarget(Intake.WristMode.Back, 500);
                     currentCycle = 3;
                     autoStates = AutoStates.Pickup;
                     break;
                 case Pickup:
-                    armManager.setGrabberPosition(Intake.IntakeState.Closed);
-                    armManager.setWristTarget(Intake.WristMode.Back, 200);
+//                    visionPortal.resumeStreaming();
+//                    if (sampleProcessor.isOnTarget()) {
+                    armManager.startPickup();
                     autoStates = AutoStates.GoToNet;
+//                    } else {
+//                        driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, sampleProcessor.getTravelDistance(true), 0, AngleUnit.DEGREES, 0), false);
+//                        armManager.extendArmToPosition(sampleProcessor.getTravelDistance(false) + armManager.getExtentionInches());
+//                    }
+//                    visionPortal.stopStreaming();
                     break;
                 case Stop:
                     armManager.setArmTarget(DeepArm.ArmMode.Lifted,0);
+                    driveChassis.setTarget(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES ,45), false);
+                    autoStates = AutoStates.Test;
                     break;
             }
 

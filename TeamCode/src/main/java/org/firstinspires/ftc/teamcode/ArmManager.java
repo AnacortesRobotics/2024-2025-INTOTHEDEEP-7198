@@ -9,6 +9,7 @@ public class ArmManager {
     private Intake intake;
     private Telemetry telemetry;
     private long lastCallTime = 0;
+    private boolean debugFlag = false;
 
     private Pickup pickup = Pickup.Done;
 
@@ -46,6 +47,7 @@ public class ArmManager {
 
     public void setWristTarget(Intake.WristMode wristMode, long delay) {
         intake.setWristTarget(wristMode, delay);
+        debugFlag = true;
     }
 
     public void setGrabberPosition(Intake.IntakeState intakeState) {
@@ -59,7 +61,8 @@ public class ArmManager {
             switch (pickup) {
                 case Lower:
                     setArmTarget(DeepArm.ArmMode.Pickup, 0);
-                    setWristTarget(Intake.WristMode.Pickup, 0);
+                    setWristTarget(Intake.WristMode.Pickup, 300);
+                    setGrabberPosition(Intake.IntakeState.Open);
                     pickup = Pickup.Grab;
                     break;
                 case Grab:
@@ -68,7 +71,7 @@ public class ArmManager {
                     break;
                 case Lift:
                     setArmTarget(DeepArm.ArmMode.Lifted, 0);
-                    setWristTarget(Intake.WristMode.Forward, 200);
+                    setWristTarget(Intake.WristMode.Pickup, 200);
                     pickup = Pickup.Done;
                     break;
                 case Done:
@@ -77,9 +80,19 @@ public class ArmManager {
         }
     }
 
+    public void lineUpToGrab() {
+        deepArm.setArmTarget(DeepArm.ArmMode.Pickup, 0);
+        setWristTarget(Intake.WristMode.Pickup, 300);
+        setGrabberPosition(Intake.IntakeState.LineUp);
+    }
+
+    public void startPickFromLineup() {
+        pickup = Pickup.Grab;
+    }
+
     public void scoreAndReturn() {
         setGrabberPosition(Intake.IntakeState.Open);
-        setWristTarget(Intake.WristMode.Forward, 300);
+        setWristTarget(Intake.WristMode.Pickup, 300);
         setArmTarget(DeepArm.ArmMode.Lifted, 500);
     }
 
@@ -101,10 +114,45 @@ public class ArmManager {
         telemetry.addData("Arm at target", deepArm.isStopped());
         //telemetry.addData("Intake at target", intake.isIntakeDone());
         telemetry.addData("Wrist at target", intake.isWristDone());
+        telemetry.addData("Did it get to here (the badshow)", debugFlag);
     }
 
-    public boolean isAtTarget(){
+    public boolean isAtTarget() {
         return intake.isIntakeDone() && intake.isWristDone() && deepArm.isAtTarget();
     }
+
+    public boolean isArmDone() {
+        return deepArm.isArmDone();
+    }
+
+    public void lock() {
+        deepArm.lock();
+        intake.lock();
+    }
+
+    public void unlock() {
+        deepArm.unlock();
+        intake.unlock();
+    }
+
+    public boolean isRotateLimitDown() {
+        return deepArm.isArmLimitRotateDown();
+    }
+
+    public void extendArmToPosition(double extendInches) {
+        deepArm.extendArm(extendInches);
+    }
+
+    public double getExtentionInches() {
+        return deepArm.getArmExtendInches();
+    }
+
+    public int getRotationTicks() {
+        return deepArm.getRotatePosition();
+    }
+
+//    public void lockWristPosition() {
+//        deepArm.
+//    }
 
 }
