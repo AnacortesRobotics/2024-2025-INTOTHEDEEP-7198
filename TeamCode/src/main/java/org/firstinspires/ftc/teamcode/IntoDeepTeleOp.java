@@ -128,7 +128,7 @@ public class IntoDeepTeleOp extends OpMode {
         if (armManager.isPickupDone()) {
             if (gamepad2.dpad_up) {
                 armManager.setArmTarget(ArmMode.Score, 0);
-                armManager.setWristTarget(WristMode.Forward, 2000);
+                armManager.setWristTarget(WristMode.Pickup, 0);
             } else if (gamepad2.dpad_right) {
                 armManager.setArmTarget(ArmMode.Lifted, 0);
             } else if (gamepad2.dpad_down) {
@@ -162,32 +162,32 @@ public class IntoDeepTeleOp extends OpMode {
             armManager.unlock();
         }
 
-        if (gamepad2.left_bumper) {
-            if (!bumperMode) {
-                if (wristMode == WristMode.Pickup) {
-                    if (armManager.getRotationTicks() > 1800) {
-                        armManager.setWristTarget(WristMode.Back, 0);
-                        wristMode = WristMode.Back;
-                    }
-                } else if (wristMode == WristMode.Back) {
-                    if (armManager.getRotationTicks() > 1800) {
-                        armManager.setWristTarget(WristMode.Score, 0);
-                        wristMode = WristMode.Score;
-                    }
-                } else if (wristMode == WristMode.Score) {
-                    if (armManager.getRotationTicks() > 1800) {
-                        armManager.setWristTarget(WristMode.Forward, 0);
-                        wristMode = WristMode.Forward;
-                    }
-                } else if (wristMode == WristMode.Forward) {
-                    armManager.setWristTarget(WristMode.Pickup, 0);
-                    wristMode = WristMode.Pickup;
-                }
-                bumperMode = true;
-            }
-        } else {
-            bumperMode = false;
-        }
+//        if (gamepad2.left_bumper) {
+//            if (!bumperMode) {
+//                if (wristMode == WristMode.Pickup) {
+//                    if (armManager.getRotationTicks() > 1800) {
+//                        armManager.setWristTarget(WristMode.Back, 0);
+//                        wristMode = WristMode.Back;
+//                    }
+//                } else if (wristMode == WristMode.Back) {
+//                    if (armManager.getRotationTicks() > 1800) {
+//                        armManager.setWristTarget(WristMode.Score, 0);
+//                        wristMode = WristMode.Score;
+//                    }
+//                } else if (wristMode == WristMode.Score) {
+//                    if (armManager.getRotationTicks() > 1800) {
+//                        armManager.setWristTarget(WristMode.Forward, 0);
+//                        wristMode = WristMode.Forward;
+//                    }
+//                } else if (wristMode == WristMode.Forward) {
+//                    armManager.setWristTarget(WristMode.Pickup, 0);
+//                    wristMode = WristMode.Pickup;
+//                }
+//                bumperMode = true;
+//            }
+//        } else {
+//            bumperMode = false;
+//        }
         if (gamepad2.left_trigger > .3) {
             if (!triggerMode) {
                 if (intakeState == IntakeState.Closed) {
@@ -217,7 +217,7 @@ public class IntoDeepTeleOp extends OpMode {
 //            visionPortal.stopStreaming();
 //        }
 
-            armManager.manualArmMove(-gamepad2.left_stick_y, -gamepad2.right_stick_y);
+        armManager.manualArmMove(-gamepad2.left_stick_y, -gamepad2.right_stick_y);
 
         telemetry.addData("Left stick y", gamepad2.left_stick_y);
         telemetry.addData("Right stick y", gamepad2.right_stick_y);

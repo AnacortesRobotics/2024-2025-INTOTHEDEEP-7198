@@ -29,7 +29,7 @@ public class DeepArm {
     private boolean hasArmInitialized = false;
     private boolean hasRotateInitialized = false;
 
-    private static final double TICKS_PER_INCH = 279.43;
+    private static final double TICKS_PER_INCH = 73.94;             // encoder ticks per revolution / 5.2
     private static final double TICKS_PER_REVOLUTION = 145.1 * 28 * 3;
     // one full 360 of the arm
 
@@ -130,11 +130,11 @@ public class DeepArm {
         if (armState != ArmState.Stop) {
             return;
         }
-        if (getRotatePosition() < 1800 && getRotatePosition() > 800 && rotateSpeed < 0) {
-            telemetry.addData("Is lockout active", true);
-            telemetry.addData("Rotate speed", rotateSpeed);
-            return;
-        }
+//        if (getRotatePosition() < 1800 && getRotatePosition() > 800 && rotateSpeed < 0) {
+//            telemetry.addData("Is lockout active", true);
+//            telemetry.addData("Rotate speed", rotateSpeed);
+//            return;
+//        }
         rotateArmOffset(rotateSpeed);
         extendArmOffset(extendSpeed);
     }
@@ -211,7 +211,7 @@ public class DeepArm {
     }
 
     public void retractArm() {
-        extendArm(0.5);
+        extendArm(0.8);
     }
 
     public void setArmTarget(ArmMode mode, long delay) {
@@ -230,11 +230,11 @@ public class DeepArm {
         armMode = mode;
         switch (mode) {
             case Pickup:
-                degreesTarget = 6;
+                degreesTarget = 8;
                 //inchesTarget = 3;   //(Don't want to move the arm to a set length when attempting to pickup blocks)
                 break;
             case Lifted:
-                degreesTarget = 12;
+                degreesTarget = 20;
                 inchesTarget = 1;
                 break;
             case Score:
@@ -295,7 +295,7 @@ public class DeepArm {
         int armExtendTicks = (int) (armLength * TICKS_PER_INCH);
         if (hasArmInitialized) {
             armExtendTicks = max(armExtendTicks, ARM_LENGTH_MIN);
-            armExtendTicks = min(armExtendTicks, getRotatePosition() < 1800 ? ARM_LENGTH_MAX / 5 : ARM_LENGTH_MAX);      // length/2
+            armExtendTicks = min(armExtendTicks, getRotatePosition() < 1800 ? ARM_LENGTH_MAX / 3 : ARM_LENGTH_MAX);      // length/2
             armExtendInches = max(armExtendInches, ARM_LENGTH_MIN / TICKS_PER_INCH);
             armExtendInches = min(armExtendInches, ARM_LENGTH_MAX / TICKS_PER_INCH);
         }
@@ -309,11 +309,11 @@ public class DeepArm {
 
     public boolean isArmLimitDown() {
         return !armLimit.getState();
-        // returns true when not pressed            with ! returns true when pressed
+        // returns true when not pressed        with ! returns true when pressed
     }
     public boolean isArmLimitRotateDown() {
         return !armLimitRotation.getState();
-        // returns true when not pressed           with ! returns true when pressed
+        // returns true when not pressed        with ! returns true when pressed
     }
 
     public boolean isArmMaxRotateDown() {

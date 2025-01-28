@@ -4,7 +4,19 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.hardware.*;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
-public class Intake {
+public class Intake implements ISubsystem {
+
+    static Intake instance;
+
+    private Intake() {}
+
+    public static Intake getInstance() {
+        if (instance == null) {
+            instance = new Intake();
+        }
+        return instance;
+    }
+
     //names the servos
     private Servo leftIn;
     private Servo rightIn;
@@ -82,7 +94,7 @@ public class Intake {
         debugFlag = true;
     }
 
-    public void addTelemetry() {
+    public void telemetry() {
         //telemetry.addData("Is button pressed? ", isLimitDown());
         //telemetry.addData("red from color sensor: ", colorSensor.red());
         //telemetry.addData("green from color sensor: ", colorSensor.green());
@@ -170,6 +182,10 @@ public class Intake {
                 telemetry.addData("is submersible pickup working", check);
         }
         wristMode = mode;
+    }
+
+    public boolean isDone() {
+        return isIntakeDone() && isWristDone();
     }
 
     public boolean isIntakeDone() {

@@ -39,7 +39,7 @@ public class SampleProcessor implements VisionProcessor, CameraStreamSource {
     public Point targetPoint = new Point();
     Paint paint = new Paint();
 
-    //TODO: get the correct number here. (from the height, with the camera, be aware of distortion)
+    // get the correct number here. (from the height, with the camera, be aware of distortion)
     // converts pixels to inches, so number of inches in a pixel, not number of pixels in an inch
     private static final double PIXELS_TO_INCHES = 0.0105;
 
@@ -49,11 +49,10 @@ public class SampleProcessor implements VisionProcessor, CameraStreamSource {
     public final AtomicReference<Bitmap> lastFrame =
             new AtomicReference<>(Bitmap.createBitmap(1, 1, Bitmap.Config.RGB_565));
 
-    @SuppressLint("ResourceAsColor")
     @Override
     public void init(int width, int height, CameraCalibration cameraCalibration) {
         lastFrame.set(Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565));
-        paint.setColor(R.color.firstred);
+        //paint.setColor(R.color.firstred);
         paint.setStrokeWidth(8);
     }
 
@@ -93,7 +92,7 @@ public class SampleProcessor implements VisionProcessor, CameraStreamSource {
             rectList.clear();
             possibleTargets.clear();
             for (MatOfPoint c : contours) {
-                if (Imgproc.contourArea(c) < 400) {
+                if (Imgproc.contourArea(c) < 6000) {
                     continue;
                 }
                 RotatedRect box = Imgproc.minAreaRect(new MatOfPoint2f(c.toArray()));
@@ -125,9 +124,9 @@ public class SampleProcessor implements VisionProcessor, CameraStreamSource {
         }
 
         findTarget();
-        paint.setColor(R.color.dashboardColor);
+        //paint.setColor(R.color.dashboardColor);
         canvas.drawPoint((float) CENTER_OF_SCREEN.x, (float) CENTER_OF_SCREEN.y, paint);
-        paint.setColor(R.color.active_button_green);
+        //paint.setColor(R.color.active_button_green);
         canvas.drawPoint((float)targetPoint.x, (float)targetPoint.y, paint);
         Imgproc.drawMarker(output, CENTER_OF_SCREEN, new Scalar(0, 255, 0));
         Imgproc.drawMarker(output, targetPoint, new Scalar(0, 0, 255));
@@ -142,6 +141,7 @@ public class SampleProcessor implements VisionProcessor, CameraStreamSource {
         Imgproc.dilate(maskEroded, output, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(7, 7)));
     }
 
+
     private void drawRotatedRect(Canvas canvas, RotatedRect rect, float scale) {
         Point[] rectPoints = new Point[4];
         float[] rectFloats = new float[8];
@@ -153,8 +153,8 @@ public class SampleProcessor implements VisionProcessor, CameraStreamSource {
         Point centerBox = rect.center;
         double angle = rect.angle;
         Imgproc.putText(output, "Center: " + (int)centerBox.x + " , " + (int)centerBox.y + " Angle: " + angle,
-                centerBox, Imgproc.FONT_HERSHEY_SIMPLEX, 1, new Scalar(255, 0, 0));
-        paint.setColor(R.color.firstred);
+                centerBox, Imgproc.FONT_HERSHEY_SIMPLEX, 2, new Scalar(255, 0, 0));
+        //paint.setColor(R.color.firstred);
         //canvas.drawLines(rectFloats, paint);
     }
 

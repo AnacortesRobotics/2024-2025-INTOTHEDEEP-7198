@@ -22,7 +22,7 @@ public class ArmManager {
 
     public void init(HardwareMap hMap, Telemetry telemetry) {
         this.telemetry = telemetry;
-        intake = new Intake();
+        intake = Intake.getInstance();
         intake.init(hMap, telemetry);
         deepArm = new DeepArm();
         deepArm.init(hMap, telemetry, null);
@@ -55,7 +55,7 @@ public class ArmManager {
     }
 
     public void pickupUpdate() {
-        boolean didTimeout = System.currentTimeMillis() - lastCallTime > 1500;
+        boolean didTimeout = System.currentTimeMillis() - lastCallTime > 500;
         if (isAtTarget() || didTimeout) {
             lastCallTime = System.currentTimeMillis();
             switch (pickup) {
@@ -110,7 +110,7 @@ public class ArmManager {
 
     public void updateTelemetry() {
         deepArm.addTelemetry(telemetry);
-        intake.addTelemetry();
+        intake.telemetry();
         telemetry.addData("Arm at target", deepArm.isStopped());
         //telemetry.addData("Intake at target", intake.isIntakeDone());
         telemetry.addData("Wrist at target", intake.isWristDone());
