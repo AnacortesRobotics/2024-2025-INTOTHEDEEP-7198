@@ -178,7 +178,7 @@ public class Intake implements ISubsystem {
                 telemetry.addData("is pickup working", check);
                 break;
             case Pickup:
-                wrist.setPosition(.9);
+                wrist.setPosition(1);
                 telemetry.addData("is submersible pickup working", check);
         }
         wristMode = mode;

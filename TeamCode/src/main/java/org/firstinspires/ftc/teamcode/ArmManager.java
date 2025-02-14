@@ -26,7 +26,6 @@ public class ArmManager {
         intake.init(hMap, telemetry);
         deepArm = new DeepArm();
         deepArm.init(hMap, telemetry, null);
-
     }
 
     public void setArmTarget(DeepArm.ArmMode armMode, long delay) {

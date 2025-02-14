@@ -30,7 +30,7 @@ public class DeepArm {
     private boolean hasRotateInitialized = false;
 
     private static final double TICKS_PER_INCH = 73.94;             // encoder ticks per revolution / 5.2
-    private static final double TICKS_PER_REVOLUTION = 145.1 * 28 * 3;
+    private static final double TICKS_PER_REVOLUTION = 103.8 * 28 * 3;
     // one full 360 of the arm
 
     // Correct the positions, especially picking up the 2 and 3 samples.
@@ -355,7 +355,7 @@ public class DeepArm {
     }
 
     public boolean isAtTarget() {
-        double differenceRotate = Math.abs(getRotatePosition() - armBase.getTargetPosition());
+        double differenceRotate = Math.abs((getRotatePosition()) - armBase.getTargetPosition());
         double differenceExtend = Math.abs(armExtend.getCurrentPosition() - armExtend.getTargetPosition());
         return differenceRotate < ALLOWED_TICKS_OFFSET && differenceExtend < ALLOWED_TICKS_OFFSET;
     }
