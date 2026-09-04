@@ -84,8 +84,8 @@ public class IntoDeepTeleOp extends OpMode {
 //        if (gamepad2.right_trigger < 0.1) {
 //            intake.servoControl(IntakeState.In);
         if (gamepad2.b||gamepad2.x) {
-            double s1 = gamepad2.b ? 0 : 0.5;
-            double s2 = gamepad2.x ? 0 : 0.5;
+            double s1 = gamepad2.b ? 0.5 : 0;
+            double s2 = gamepad2.x ? 0.5 : 0;
             armManager.setGrabberPosition(IntakeState.Open,s1,s2);
             //blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLACK);
         } else if (gamepad2.a) {

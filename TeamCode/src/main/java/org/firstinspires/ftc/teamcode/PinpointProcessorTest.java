@@ -67,7 +67,7 @@ public class PinpointProcessorTest extends OpMode {
 
         // set up the drive chassis and corresponding systems
         driveChassis = new Chassis();
-        driveChassis.init(hardwareMap, telemetry);
+        driveChassis.init(hardwareMap, telemetry,false);
     }
 
     @Override
